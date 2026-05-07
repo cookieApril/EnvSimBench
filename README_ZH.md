@@ -1,239 +1,272 @@
 <div align="center">
-  <img src="Figs/envscaler_logo.png" width="150px">
+  <img src="Figs/envsimbench_logo.png" width="150px">
 </div>
-<h1 align="center"> EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</a></h1>
-
+<h1 align="center">EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</h1>
 
 <div align="center">
-  <a href="https://arxiv.org/abs/2601.05808">
-    <img src="https://img.shields.io/badge/Paper-arXiv-b5212f.svg?logo=arxiv" alt="Arxiv">
+  <a href="https://arxiv.org/">
+    <img src="https://img.shields.io/badge/Paper-arXiv-b5212f.svg?logo=arxiv" alt="arXiv">
   </a>
-  <a href="https://mp.weixin.qq.com/s/1x7H23qkUqh0aahQFiqJzQ">
-    <img src="https://img.shields.io/badge/Blog-WeChat-07c160?logo=wechat&logoColor=white" alt="WeChat Blog">
-  </a>
-  <a href="https://huggingface.co/papers/2601.05808">
-    <img src="https://img.shields.io/badge/Paper-Hugging%20Face-blue?logo=huggingface" alt="Hugging Face Paper">
+  <a href="https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench">
+    <img src="https://img.shields.io/badge/Dataset-Hugging%20Face-blue?logo=huggingface" alt="HF Datasets">
   </a>
-  <a href="https://huggingface.co/collections/XXHStudyHard/envscaler">
-    <img src="https://img.shields.io/badge/Model-Hugging%20Face-blue?logo=huggingface" alt="Hugging Face Models">
+  <a href="https://huggingface.co/Louie-CookieApril/EnvSimBench-Model">
+    <img src="https://img.shields.io/badge/Model-Hugging%20Face-blue?logo=huggingface" alt="HF Models">
   </a>
-  <a href="https://huggingface.co/collections/XXHStudyHard/envscaler">
-    <img src="https://img.shields.io/badge/Dataset-Hugging%20Face-blue?logo=huggingface" alt="Hugging Face Datasets">
-  </a>
-  <a href="https://www.python.org/downloads/release/python-312/">
+  <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python 3.10+">
-  </a>
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+  </a>
 </div>
 
-<div align="center">
-  <a href="README_ZH.md">中文</a> | <a href="README.md">English</a>
-</div>
+<h5 align="center">If you find our work helpful, please give us a star ⭐ on GitHub. We greatly appreciate your support.</h5>
 
-
-<h5 align="center">如果您喜欢我们的项目，请在GitHub上给我们点个 ⭐。我们会非常感谢您的支持。</h5>
-
-## 🎬
-
-
-
-您可以本地运行与Env交互的demo:
-```bash
-cd interact_with_env
-python app.py
-```
-您可以本地运行从零构建Env骨架的demo:
-```bash
-cd skel_builder
-python env_build_demo.py
-```
-
-## 📦 Dataset & Models
-
-我们提供EnvScaler的数据和模型 (SFT+RL) 如下:
-
-| Data | Link |
-| --- | --- |
-| Benchmark Metadata | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Benchmark) |
-|  SFT data | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/SFT%20Data) |
-| Process data | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Process%20Data) |
-|  |  |
-
-| Model | Link |
-| --- | --- |
-| EnvScaler-Qwen3-1.7B | [🤗 HuggingFace](https://huggingface.co/XXHStudyHard/EnvScaler-Qwen3-1.7B) |
-| EnvScaler-Qwen3-4B | [🤗 HuggingFace](https://huggingface.co/XXHStudyHard/EnvScaler-Qwen3-4B) |
-| EnvScaler-Qwen3-8B | [🤗 HuggingFace](https://huggingface.co/XXHStudyHard/EnvScaler-Qwen3-8B) |
-|  |  |
+---
 
 ## 📑 Contents
 
-- [🎬 Demo](#-demo)
-- [📦 Dataset & Models](#-dataset--models)
 - [👀 Overview](#-overview)
-- [📊 Results](#-results)
+- [✨ Key Contributions](#-key-contributions)
+- [📦 Dataset & Models](#-dataset--models)
+- [📊 Main Results](#-main-results)
 - [📁 Project Structure](#-project-structure)
-  - [skel_builder/ - 环境骨架构建](skel_builder/README_ZH.md)
-  - [scen_generator/ - 场景生成](scen_generator/README_ZH.md)
-  - [interact_with_env/ - Agent与环境交互](interact_with_env/README_ZH.md)
-  - [sft/ - 监督微调](sft/README_ZH.md)
-  - [rl/ - 强化学习](rl/README_ZH.md)
-  - [evaluation/ - 评估指南](evaluation/README_ZH.md)
 - [🚀 Quick Start](#-quick-start)
+- [🧪 Running the Benchmark](#-running-the-benchmark)
+- [🏋️ Training Your Own Simulator](#-training-your-own-simulator)
 - [📚 Citation](#-citation)
 - [📞 Contact](#-contact)
 
+---
 
 ## 👀 Overview
 
-**EnvScaler** 是一个自动化，可扩展的框架，通过程序实现可运行、带状态、支持工具交互的环境，用于训练LLM智能体。
+Scalable AI agent training relies on interactive environments that faithfully simulate the consequences of agent actions. Manually crafted environments are expensive to build, brittle to extend, and limited in diversity. A promising alternative is to replace executable environments with **LLM-simulated** counterparts — but this paradigm rests on an unexamined assumption:
+
+> *Can LLMs accurately simulate environmental feedback?*
+
+In practice, LLM simulators suffer from **hallucinations**, **logical inconsistencies**, and **silent state drift** — failures that corrupt agent reward signals and erode the cost advantage that motivated the paradigm.
+
+**EnvSimBench** is the first rigorous benchmark designed to *evaluate the simulator itself*, rather than the agent. It introduces:
+
+- A formal definition of **Environment Simulation Ability (EnvSim Ability)** as a measurable capability.
+- A **constraint-driven MDP formulation** that decouples state estimation from transition reasoning, enabling LLM-free, programmatic evaluation.
+- A specialized **4B simulation model** that surpasses frontier LLMs on Config Match while cutting synthesis costs by over 90%.
 
 <p align="center">
-    <img src="Figs/envscaler_overview.png" width="60%"> <br>
-  Overview of <b>EnvScaler</b>.
+  <img src="Figs/envsimbench_overview.png" width="95%"><br>
+  <em>Overview of <b>EnvSimBench</b>: trajectory collection → three-axis stratification → frontier LLM evaluation + specialized small-model training.</em>
 </p>
 
-**SkelBuilder** 是 EnvScaler 的第一阶段。它 (1) 从现有的开源文本任务出发，挖掘潜在的领域描述; (2) 规划对应的状态模式与业务规则，并生成一个功能完整的 Python 类，其方法对外暴露工具接口; (3) 双智能体循环环境质检（一个随机发起工具调用，另一个检查代码、返回值及状态变化），保证质量与一致性。
+---
+
+## ✨ Key Contributions
+
+1. **Formalization.** We provide the first formal definition and operationalization of **Environment Simulation Ability** as a quantifiable research objective, framed as fully-observable state prediction over `(s_t, a_t, code(a_t)) → (ô_t, ŝ′_t)`.
+2. **Benchmark.** We construct **EnvSimBench**: 400 samples drawn from **167 diverse environments**, equipped with verifiable programmatic labels and **three-axis difficulty stratification** (action outcome, state-change complexity, argument cardinality).
+3. **Diagnosis.** Systematic evaluation of seven frontier LLMs reveals a universal **state-change cliff**: every model is near-perfect when state is invariant, yet collapses catastrophically once `|Δ| ≥ 3` simultaneous state updates are required.
+4. **Optimization.** We design a **constraint-driven simulation pipeline** that, paired with a specialized 4B model, **reduces hallucination**, **boosts synthesis yield by 6.8%**, and **cuts simulation cost by over 90%**.
 
 <p align="center">
-    <img src="Figs/skelbuilder_framework.png" width="98%"> <br>
-  Framework of <b>SkelBuilder</b>.
+  <img src="Figs/pomdp_vs_mdp.png" width="90%"><br>
+  <em>POMDP (left) vs. constraint-driven MDP (right). Supplying <code>s_t</code> and <code>code(a_t)</code> explicitly removes hallucination, enforces logical consistency, and prevents state drift by construction.</em>
 </p>
 
-**ScenGenerator** 是第二阶段。给定一个环境骨架，它首先提示LLMs生成初始状态/数据库，然后创建一个从该状态出发可解决的挑战性任务。最后，它将任务分解为若干独立检查点，并把每个检查点转换成针对环境最终状态的 Python 布尔函数，提供基于规则,可验证的奖励信号。
- 
+---
+
+## 📦 Dataset & Models
+
+We release the EnvSimBench data and our trained simulation model (SFT + RL) on Hugging Face:
+
+| Data | Description | Link |
+| --- | --- | --- |
+| Benchmark Metadata | 400 evaluation samples across 167 environments | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Benchmark) |
+| SFT Data | Supervised fine-tuning data for the simulator | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/SFT%20Data) |
+| Process Data | Process / trajectory data used during construction | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Process%20Data) |
+
+| Model | Description | Link |
+| --- | --- | --- |
+| EnvSimBench-Model | 4B simulator (SFT + RL) — surpasses frontier LLMs on Config Match | [🤗 HuggingFace](https://huggingface.co/Louie-CookieApril/EnvSimBench-Model) |
+
+### Benchmark Composition
+
+| Group | Subgroup | Samples | Constraint |
+| --- | --- | --- | --- |
+| Failure | `O` returns error, `\|Δ\| = 0` | 20 | — |
+| No-Change | `\|Δ\| = 0`, action succeeds | 80 | 40 per argument cardinality |
+| Simple | `\|Δ\| ∈ {1, 2}` | 50 | 25 per `\|Δ\|` value |
+| Medium | `\|Δ\| ∈ {3, …, 6}` | 200 | 50 per `\|Δ\|` value |
+| Difficult | `\|Δ\| ∈ {7, …, 12}` | 50 | Distributed across `\|Δ\|` |
+
+Each sample is **independently verifiable** against a deterministic external executor — no LLM-as-judge anywhere in the pipeline.
+
+---
+
+## 📊 Main Results
+
+### Frontier LLMs Exhibit a Universal State-Change Cliff
+
+| Model | Fail+No-Chg CM | State-Change CM | Overall CM |
+| --- | :---: | :---: | :---: |
+| DeepSeek-V3.2 | 100% | 10.0% | 32.5% |
+| Qwen3.5-397B-A17B | 100% | 23.0% | 42.3% |
+| GPT-5.4 | 100% | 22.7% | 42.0% |
+| Gemini-3.1-Pro-Preview | 100% | 22.7% | 42.0% |
+| Claude-Sonnet-4.6 | 99% | 17.3% | 37.8% |
+| MiniMax-M2.7 | 99% | 22.7% | 41.8% |
+| GLM-5 | 100% | 21.3% | 41.0% |
+| **Ours (Full-Balance2, 4B)** | **100%** | **—** | **45.3%** |
+
+- Every frontier model achieves ≥99% CM on state-preserving samples but collapses on state-changing ones.
+- At `|Δ| ≥ 5`, all frontier models converge near zero CM.
+- Our **4B specialized simulator surpasses all frontier LLMs on Config Match** while running at ≈59× lower parameter count.
+
 <p align="center">
-    <img src="Figs/scengenerator_framework.png" width="98%"> <br>
-  Framework of <b>ScenGenerator</b>.
+  <img src="Figs/state_change_cliff.png" width="92%"><br>
+  <em>Config Match vs. <code>|Δ|</code>. Frontier LLMs (thin lines) drop sharply at <code>|Δ| ≥ 3</code>; our Full-Balance2 (thick) leads by up to +10 pp on the deployable regime.</em>
 </p>
 
-## 📊 Results
+### Downstream Synthesis Yield
 
-借助 EnvScaler，我们合成了 191 个环境、约 7 000 个场景，并将其应用于 Qwen3 系列模型的监督微调（SFT）与强化学习（RL）。在三个基准测试上的结果表明，EnvScaler 显著提升了大语言模型在涉及多轮、多工具交互的复杂环境中解决任务的能力。
+Plugging our 4B simulator into the EnvScaler synthesis pipeline (replacing its large-model ensemble) yields:
 
-<p align="center">
-    <img src="Figs/env_info.png" width="98%"> <br>
-  Statistics of 191 synthesized environments.
-</p>
+- **+6.8%** more environments passing the 0.85 quality threshold (191 → 204)
+- **>90%** lower simulation cost
+- Pareto-superior on both cost and quality
 
-<p align="center">
-    <img src="Figs/result.png" width="98%"> <br>
-  Performance comparison.
-</p>
+---
 
 ## 📁 Project Structure
 
 ```
-EnvScaler/
-├── skel_builder/              # 阶段1: 环境骨架构建
-├── scen_generator/            # 阶段2: 场景生成
-├── interact_with_env/         # Agent与环境交互
-├── sft/                       # 监督微调（SFT）
-├── rl/                        # 强化学习（RL）
-└── evaluation/                # 评估指南
+EnvSimBench/
+├── benchmark/                 # 400 evaluation samples + executor labels
+├── construction/              # Trajectory collection & three-axis stratification pipeline
+├── evaluation/                # Frontier LLM evaluation harness (FM / CM metrics)
+├── simulator/                 # Constraint-driven MDP prompt construction
+├── sft/                       # Supervised fine-tuning (LlamaFactory-based)
+├── rl/                        # Reinforcement learning (ROLL-based)
+├── downstream/                # EnvScaler integration for synthesis-yield validation
+├── Figs/                      # Figures used in the paper / README
+└── requirements.txt
 ```
 
-### 模块说明
+> 💡 Each subdirectory ships its own `README.md` with detailed usage instructions.
 
-> 💡 **提示**: 我们分别在每个模块下提供了详细的实现文档。
-
-1. **[skel_builder/](skel_builder/README_ZH.md)** - 环境骨架构建框架，从现有任务中自动生成可执行的环境类
-2. **[scen_generator/](scen_generator/README_ZH.md)** - 场景生成框架，为环境骨架生成状态数据, 任务场景和检查函数
-3. **[interact_with_env/](interact_with_env/README_ZH.md)** - Agent与环境交互模块，支持（1）与合成的环境交互来采集训练数据以及（2）基准评估
-4. **[sft/](sft/README_ZH.md)** - 监督微调实现，基于LlamaFactory进行SFT训练
-5. **[rl/](rl/README_ZH.md)** - 强化学习实现，基于ROLL框架进行RL训练
-6. **[evaluation/](evaluation/README_ZH.md)** - 评估指南，包含BFCL、TauBench、ACEBench等评估
-
+---
 
 ## 🚀 Quick Start
 
-### 1. 克隆仓库
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/RUC-NLPIR/EnvScaler
-cd EnvScaler
+git clone https://github.com/cookieApril/EnvSimBench
+cd EnvSimBench
 ```
 
-### 2. 安装依赖
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-> 💡 **注意**: 本项目的基础依赖已包含在 `requirements.txt` 中。如果您需要进行 SFT 或 RL 训练，请参考对应的子项目文档安装额外依赖：
-> - SFT训练: 参考 [sft/README_ZH.md](sft/README_ZH.md) 安装 LlamaFactory
-> - RL训练: 参考 [rl/README_ZH.md](rl/README_ZH.md) 安装 ROLL 框架
+> SFT / RL training pull additional dependencies — see [`sft/README.md`](sft/README.md) and [`rl/README.md`](rl/README.md).
 
-### 3. 配置LLM服务
+### 3. Configure your LLM service
 
-
-#### 方式1: 使用OpenAI API
-
-在项目根目录创建 `.env` 文件，配置OpenAI API密钥：
+#### Option A — Use a hosted API
 
 ```bash
 # .env
-OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-#### 方式2: 使用自部署模型
-
-您可以使用兼容OpenAI接口的推理框架例如 [vLLM](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/) 部署本地模型。
-
-**使用vLLM部署模型：**
+#### Option B — Self-host a model with vLLM
 
 ```bash
-vllm serve your-model-path \
-    --host 0.0.0.0 \
-    --port 8000 \
+vllm serve Louie-CookieApril/EnvSimBench-Model \
+    --host 0.0.0.0 --port 8000 \
     --trust-remote-code
 ```
 
-> ⚠️ **重要**: 确保部署的模型服务支持**函数调用（Function Calling, FC）接口**，，详情请参考 [vLLM OpenAI-Compatible Server文档](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/)。
+> ⚠️ Make sure the deployed service supports a **Function Calling (FC) interface** — see the [vLLM OpenAI-compatible server docs](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/).
 
-### 4. 验证配置
-
-运行演示程序验证配置是否正确：
+### 4. Download the benchmark
 
 ```bash
-# 环境交互演示
-cd interact_with_env
-python app.py
-
-# 环境交互Debug
-cd interact_with_env
-python run_main_debug.py
-
-# 环境构建演示
-cd skel_builder
-python env_build_demo.py
+huggingface-cli download Louie-CookieApril/EnvSimBench \
+    --repo-type dataset --local-dir ./data
 ```
 
-### 5. 开始使用
+---
 
-现在您可以开始使用EnvScaler的各个模块了，每个模块在实现上互相独立:
+## 🧪 Running the Benchmark
 
-- **构建环境**: 参考 [skel_builder/README_ZH.md](skel_builder/README_ZH.md)
-- **生成场景**: 参考 [scen_generator/README_ZH.md](scen_generator/README_ZH.md)
-- **采集训练数据**: 参考 [interact_with_env/README_ZH.md](interact_with_env/README_ZH.md)
-- **模型训练**: 参考 [sft/README_ZH.md](sft/README_ZH.md) 和 [rl/README_ZH.md](rl/README_ZH.md)
-- **评估**: 参考 [evaluation/README_ZH.md](evaluation/README_ZH.md)
+Evaluate any model under the constraint-driven MDP formulation:
 
+```bash
+cd evaluation
+python run_eval.py \
+    --model gpt-4o \
+    --data ../data/Benchmark \
+    --output ./results/gpt-4o
+```
 
+Each prompt instantiates `(s_t, a_t, code(a_t))` and is scored by two **binary, programmatic** metrics:
+
+- **Feedback Match (FM)** — exact equality between predicted observation `ô_t` and ground-truth `o_t`.
+- **Config Match (CM)** — whether predicted Δ-operations, applied to `s_t`, reproduce `s′_t` exactly. CM is invariant to format conventions and is the primary cross-model reasoning metric.
+
+Per-axis breakdowns (Failure / No-Change / Simple / Medium / Difficult, plus per-`|Δ|` slices) are written to `./results/<model>/`.
+
+---
+
+## 🏋️ Training Your Own Simulator
+
+We release the SFT data and the **Balance2** mixture used to train our 4B model. To reproduce:
+
+```bash
+# 1. Fetch SFT data
+huggingface-cli download Louie-CookieApril/EnvSimBench \
+    --repo-type dataset --local-dir ./data
+
+# 2. Run SFT (full-parameter, 2×A800 80GB)
+cd sft
+bash run_sft.sh
+
+# 3. (Optional) Run RL stage
+cd ../rl
+bash run_rl.sh
+
+# 4. Evaluate your checkpoint
+cd ../evaluation
+python run_eval.py --model ./outputs/ckpt-final --data ../data/Benchmark
+```
+
+> **Composition matters more than volume.** Mirroring the empirical `|Δ|` distribution of source environments (1 K failure + 1 K no-change + 2 K simple-change + 2.23 K complex-change ≈ 6.23 K total) outperforms naïve scaling at the 5 K-sample regime.
+
+---
 
 ## 📚 Citation
 
-如果您觉得我们的工作对您有所帮助，请考虑引用。我们非常感谢您的支持。
+If you find our work helpful, please consider citing it. We greatly appreciate your support.
 
 ```bibtex
-@article{song2026envscaler,
-  title={EnvScaler: Scaling Tool-Interactive Environments for LLM Agent via Programmatic Synthesis},
-  author={Song, Xiaoshuai and Chang, Haofei and Dong, Guanting and Zhu, Yutao and Dou, Zhicheng and Wen, Ji-Rong},
-  journal={arXiv preprint arXiv:2601.05808},
-  year={2026}
+@article{liu2025envsimbench,
+  title   = {EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation},
+  author  = {Liu, Yi and Hui, TingFeng and Zhang, Wei and Sun, Li and Su, Ningxin and Wang, Jian and Su, Sen},
+  journal = {arXiv preprint},
+  year    = {2025}
 }
 ```
 
+---
+
 ## 📞 Contact
 
-如有任何疑问或反馈，请通过[songxiaoshuai@ruc.edu.cn](songxiaoshuai@ruc.edu.cn) 联系我们。
+For questions, suggestions, or collaboration, please reach out to:
+
+- **Yi Liu** — [louie@bupt.edu.cn](mailto:louie@bupt.edu.cn)
+- Open an issue on this repository.

@@ -1,6 +1,6 @@
-<div align="center">
+<!-- <div align="center">
   <img src="Figs/envsimbench_logo.png" width="150px">
-</div>
+</div> -->
 <h1 align="center">EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</h1>
 
 <div align="center">

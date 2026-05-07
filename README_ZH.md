@@ -1,7 +1,7 @@
 <div align="center">
   <img src="Figs/envscaler_logo.png" width="150px">
 </div>
-<h1 align="center"> EnvScaler: Scaling Tool-Interactive Environments for LLM Agent via Programmatic Synthesis</a></h1>
+<h1 align="center"> EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</a></h1>
 
 
 <div align="center">

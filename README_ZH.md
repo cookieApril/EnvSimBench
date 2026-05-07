@@ -32,22 +32,9 @@
 
 <h5 align="center">如果您喜欢我们的项目，请在GitHub上给我们点个 ⭐。我们会非常感谢您的支持。</h5>
 
-## 🎬 Demo
+## 🎬
 
-### Env-Agent-User Interaction
-<div align="center">
-    <video src="https://github.com/user-attachments/assets/613b46fd-63db-4050-91d2-f7aca2a766e3" />
-</div>
 
-### Env-Agent Interaction
-<div align="center">
-    <video src="https://github.com/user-attachments/assets/b8186257-a22d-4ec1-9ccf-82f6bd23a4b5" />
-</div>
-
-### Building Environment From Scratch
-<div align="center">
-    <video src="https://github.com/user-attachments/assets/fd947e46-014a-41cd-87bb-6744c3dd5b32" />
-</div>
 
 您可以本地运行与Env交互的demo:
 ```bash
@@ -66,10 +53,9 @@ python env_build_demo.py
 
 | Data | Link |
 | --- | --- |
-| 191 Env Metadata | [🤗 HuggingFace](https://huggingface.co/datasets/XXHStudyHard/EnvScaler-191-Env) |
-| 4.7K SFT Scenario | [🤗 HuggingFace](https://huggingface.co/datasets/XXHStudyHard/EnvScaler-SFT-Scenario) |
-| 2.5K RL Scenario | [🤗 HuggingFace](https://huggingface.co/datasets/XXHStudyHard/EnvScaler-RL-Scenario) |
-| 9K SFT Trajectory | [🤗 HuggingFace](https://huggingface.co/datasets/XXHStudyHard/EnvScaler-SFT-Traj-9K) |
+| Benchmark Metadata | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Benchmark) |
+|  SFT data | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/SFT%20Data) |
+| Process data | [🤗 HuggingFace](https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench/tree/main/Process%20Data) |
 |  |  |
 
 | Model | Link |

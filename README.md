@@ -141,9 +141,9 @@ Plugging our 4B simulator into the EnvScaler synthesis pipeline (replacing its l
 
 ```
 EnvSimBench/
-├── benchmark/                 # 400 evaluation samples + executor labels
-├── construction/              # Trajectory collection & three-axis stratification pipeline
-├── evaluation/                # Frontier LLM evaluation harness (FM / CM metrics)
+├── Benchmark/                 # 400 evaluation samples + executor labels
+├── Construction/              # Trajectory collection & three-axis stratification pipeline
+├── Evaluation/                # Frontier LLM evaluation harness (FM / CM metrics)
 ├── EnvScaler/                       # Supervised fine-tuning (LlamaFactory-based)
 ├── Figs/                      # Figures used in the paper / README
 └── requirements.txt

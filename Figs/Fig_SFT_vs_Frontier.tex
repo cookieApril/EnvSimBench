@@ -1,0 +1,154 @@
+% ============================================================
+% Fig_SFT_vs_Frontier — Config Match vs Δ: Full-Balance2 vs Frontier LLMs
+% All values are actual EnvSimBench experimental results.
+% Requires: \definecolor{balance2col}{HTML}{5C1F9E}  in preamble.
+% Include with: \input{Images/Fig_SFT_vs_Frontier}
+%
+% Config Match values per Δ:
+%   Model                 Δ=0  Δ=1  Δ=2  Δ=3  Δ=4  Δ=5  Δ=6  Δ≥7
+%   deepseek-v3.2         100   36    8   24    6    4    0    4
+%   GPT-5.4               100   60   20   36   24    2    8   26
+%   Gemini-3.1-Pro        100   68   28   36   24    4    6   18
+%   Claude-Sonnet-4.6      99   56   24   30   16    0    2   16
+%   Qwen3.5-397B          100   64   28   30   30    2    6   24
+%   GLM-5                 100   64   24   28   22    2    4   28
+%   MiniMax-M2.7           99   72   28   28   26    2    8   22
+%   Full-Balance2 (Ours)   99   80   36   44   40    2    8   12
+% ============================================================
+
+\begin{tikzpicture}
+\begin{axis}[
+    xlabel={Number of Changed Fields ($\Delta$)},
+    ylabel={Config Match (\%)},
+    xmin=-0.5, xmax=7.5,
+    ymin=0,    ymax=105,
+    xtick={0,1,2,3,4,5,6,7},
+    xticklabels={0,1,2,3,4,5,6,7+},
+    ytick={0,10,20,30,40,50,60,70,80,90,100},
+    yticklabels={0\%,10\%,20\%,30\%,40\%,50\%,60\%,70\%,80\%,90\%,100\%},
+    minor y tick num=1,
+    grid=both,
+    major grid style={line width=.2pt, draw=gray!50},
+    minor grid style={line width=.1pt, draw=gray!20},
+    legend style={
+        at={(0.98,0.98)}, anchor=north east,
+        font=\scriptsize, draw=gray!70, fill=white,
+        cells={anchor=west}
+    },
+    mark size=2pt,
+    width=\textwidth,
+    height=9cm,
+]
+
+% -------------------------------------------------------
+% 1. Background difficulty zones
+% -------------------------------------------------------
+\fill[lightgrey] (axis cs:-0.5,\pgfkeysvalueof{/pgfplots/ymin})
+    rectangle (axis cs:0.5,\pgfkeysvalueof{/pgfplots/ymax})
+    node[black, midway, anchor=south, yshift=-0.9cm,
+         font=\footnotesize\fontfamily{ptm}\selectfont, align=center]
+        {NO - \\ CHANGE \\ ($\Delta$ = 0)};
+
+\fill[lightcyan] (axis cs:0.5,\pgfkeysvalueof{/pgfplots/ymin})
+    rectangle (axis cs:2.5,\pgfkeysvalueof{/pgfplots/ymax})
+    node[black, midway, anchor=south, yshift=2.7cm,
+         font=\footnotesize\fontfamily{ptm}\selectfont]
+        {SIMPLE ($\Delta$=1 - 2)};
+
+\fill[lightyellow] (axis cs:2.3,\pgfkeysvalueof{/pgfplots/ymin})
+    rectangle (axis cs:6.5,\pgfkeysvalueof{/pgfplots/ymax})
+    node[black, midway, anchor=south, yshift=2.7cm,
+         font=\footnotesize\fontfamily{ptm}\selectfont]
+        {MEDIUM ($\Delta$=3 - 6)};
+
+\fill[lightpink] (axis cs:6.5,\pgfkeysvalueof{/pgfplots/ymin})
+    rectangle (axis cs:7.5,\pgfkeysvalueof{/pgfplots/ymax})
+    node[black, midway, anchor=south, yshift=-0.9cm,
+         font=\footnotesize\fontfamily{ptm}\selectfont, align=center]
+        {DIFFICULT \\ ($\Delta$=7 - 12)};
+
+% -------------------------------------------------------
+% 2. State-Change Cliff marker
+% -------------------------------------------------------
+% \draw[dashed, red, thick] (axis cs:2.5, 0) -- (axis cs:2.5, 90);
+% \node[red, anchor=south, yshift=-0.2cm, align=left,
+%       font=\small\fontfamily{ptm}\selectfont]
+%     at (axis cs:2.5, 96) {\textbf{State-Change Cliff}};
+% \draw[<-|, red, thick] (axis cs:2.5, 91) -- (axis cs:2.5, 98);
+
+% -------------------------------------------------------
+% 3. Frontier LLMs — real Config Match values
+% -------------------------------------------------------
+
+% deepseek-v3.2
+\addplot[color=dsblue, mark=*, thick]
+    coordinates {(0,100)(1,36)(2,8)(3,24)(4,6)(5,4)(6,0)(7,4)};
+\addlegendentry{DeepSeek-v3.2}
+
+% gpt-5.4
+\addplot[color=gptorange, mark=star, thick]
+    coordinates {(0,100)(1,60)(2,20)(3,36)(4,24)(5,2)(6,8)(7,26)};
+\addlegendentry{GPT-5.4}
+
+% gemini-3.1-pro-preview
+\addplot[color=geminiteal, mark=square*, thick]
+    coordinates {(0,100)(1,68)(2,28)(3,36)(4,24)(5,4)(6,6)(7,18)};
+\addlegendentry{Gemini-3.1-Pro}
+
+% claude-sonnet-4-6
+\addplot[color=claudepurple, mark=triangle*, thick]
+    coordinates {(0,99)(1,56)(2,24)(3,30)(4,16)(5,0)(6,2)(7,16)};
+\addlegendentry{Claude-Sonnet-4.6}
+
+% qwen3.5-397b-a17b
+\addplot[color=qwenred, mark=diamond*, thick]
+    coordinates {(0,100)(1,64)(2,28)(3,30)(4,30)(5,2)(6,6)(7,24)};
+\addlegendentry{Qwen3.5-397B}
+
+% glm-5
+\addplot[color=glmgold, mark=oplus*, thick]
+    coordinates {(0,100)(1,64)(2,24)(3,28)(4,22)(5,2)(6,4)(7,28)};
+\addlegendentry{GLM-5}
+
+% MiniMax-M2.7
+\addplot[color=minimaxgreen, mark=x, thick]
+    coordinates {(0,99)(1,72)(2,28)(3,28)(4,26)(5,2)(6,8)(7,22)};
+\addlegendentry{MiniMax-M2.7}
+
+% -------------------------------------------------------
+% 4. Ours: Full-Balance2
+%    NC/F CM=99 | Δ=1:80 Δ=2:36 | Δ=3:44 Δ=4:40 Δ=5:2 Δ=6:8 | Δ≥7:12
+%    Thick line (2pt) + large marker (3pt) + white border to stand out
+% -------------------------------------------------------
+\addplot[color=balance2col, line width=1pt,  % ✅ 使用你定义的颜色
+         mark=*, mark size=1.2pt,
+         mark options={fill=balance2col, draw=white, line width=0.8pt}]
+    coordinates {(0,99)(1,80)(2,36)(3,44)(4,40)(5,2)(6,8)(7,12)};
+\addlegendentry{\textbf{Ours (Full-Balance2)}}
+
+% -------------------------------------------------------
+% 5. Advantage annotations
+%    "+X pp" = Balance2 CM minus best frontier CM at that Δ
+%    Δ=1: Balance2 80% vs MiniMax 72%  → +8 pp
+%    Δ=2: Balance2 36% vs Qwen/Gem/MM 28% → +8 pp
+%    Δ=3: Balance2 44% vs GPT/Gem 36%  → +8 pp
+%    Δ=4: Balance2 40% vs Qwen 30%     → +10 pp
+%    Δ≥7: Balance2 12% vs GLM 28%      → frontier leads
+% -------------------------------------------------------
+\node[color=balance2col, font=\scriptsize\bfseries, anchor=south west]
+    at (axis cs:1.08, 80) {$\uparrow$+8\,pp};
+
+\node[color=balance2col, font=\scriptsize\bfseries, anchor=south west]
+    at (axis cs:2.0, 40) {$\uparrow$+8\,pp};
+
+\node[color=balance2col, font=\scriptsize\bfseries, anchor=south west]
+    at (axis cs:3.08, 44) {$\uparrow$+8\,pp};
+
+\node[color=balance2col, font=\scriptsize\bfseries, anchor=south west]
+    at (axis cs:4.08, 40) {$\uparrow$+10\,pp};
+
+% \node[gray!65, font=\scriptsize, anchor=north east]
+%     at (axis cs:7.45, 26) {frontier leads\,$\uparrow$};
+
+\end{axis}
+\end{tikzpicture}

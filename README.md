@@ -55,7 +55,7 @@ In practice, LLM simulators suffer from **hallucinations**, **logical inconsiste
 - A specialized **4B simulation model** that surpasses frontier LLMs on Config Match while cutting synthesis costs by over 90%.
 
 <p align="center">
-  <img src="Figs/envsimbench_overview.png" width="95%"><br>
+  <img src="Figs/Fig4.drawio.png" width="95%"><br>
   <em>Overview of <b>EnvSimBench</b>: trajectory collection → three-axis stratification → frontier LLM evaluation + specialized small-model training.</em>
 </p>
 
@@ -69,7 +69,7 @@ In practice, LLM simulators suffer from **hallucinations**, **logical inconsiste
 4. **Optimization.** We design a **constraint-driven simulation pipeline** that, paired with a specialized 4B model, **reduces hallucination**, **boosts synthesis yield by 6.8%**, and **cuts simulation cost by over 90%**.
 
 <p align="center">
-  <img src="Figs/pomdp_vs_mdp.png" width="90%"><br>
+  <img src="Figs/Fig1.drawio.png" width="90%"><br>
   <em>POMDP (left) vs. constraint-driven MDP (right). Supplying <code>s_t</code> and <code>code(a_t)</code> explicitly removes hallucination, enforces logical consistency, and prevents state drift by construction.</em>
 </p>
 

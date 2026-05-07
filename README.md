@@ -144,10 +144,7 @@ EnvSimBench/
 ├── benchmark/                 # 400 evaluation samples + executor labels
 ├── construction/              # Trajectory collection & three-axis stratification pipeline
 ├── evaluation/                # Frontier LLM evaluation harness (FM / CM metrics)
-├── simulator/                 # Constraint-driven MDP prompt construction
-├── sft/                       # Supervised fine-tuning (LlamaFactory-based)
-├── rl/                        # Reinforcement learning (ROLL-based)
-├── downstream/                # EnvScaler integration for synthesis-yield validation
+├── EnvScaler/                       # Supervised fine-tuning (LlamaFactory-based)
 ├── Figs/                      # Figures used in the paper / README
 └── requirements.txt
 ```

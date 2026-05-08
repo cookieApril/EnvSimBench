@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 """
-Sample datasets from final_false_samples_fine.json and final_true_samples.json
-修复 env_id 提取逻辑，拆分 simple 为 count=1(25条) + count=2(25条)，对齐 400 条样本采样规则
-【严格约束】：false样本必须success=False，true样本必须success=True（与评估脚本逻辑完全一致）
-
 Usage:
   python3 sample_datasets.py \
     --false_in final_false_samples_fine.json \
@@ -18,7 +14,7 @@ import os
 import re
 from collections import defaultdict
 
-# ===================== 复用评估脚本的核心函数（保证success判断完全一致） =====================
+# ===================== Reuse core functions of evaluation script (ensure consistent success judgment) =====================
 def extract_json(text):
     if not isinstance(text, str):
         return None
@@ -80,9 +76,9 @@ def parse_to_obj(value):
     return value
 
 def get_success_from_observation(sample):
-    """【核心】与评估脚本完全一致的success提取逻辑"""
+    """【Core】Consistent success extraction logic with evaluation script"""
     obs = None
-    # 优先从step_detail取observation
+    # Prioritize getting observation from step_detail
     if 'step_detail' in sample and isinstance(sample['step_detail'], dict):
         obs = sample['step_detail'].get('observation')
     else:
@@ -106,7 +102,7 @@ def get_success_from_observation(sample):
 # ========================================================================================
 
 def load_input(path):
-    """加载JSON文件（支持普通JSON数组或行分隔JSON）"""
+    """Load JSON file (supports standard JSON array or line-delimited JSON)"""
     with open(path, 'r', encoding='utf-8') as f:
         text = f.read()
     try:
@@ -116,19 +112,19 @@ def load_input(path):
     except Exception:
         items = []
         for ln in text.splitlines():
-            ln = ln.strip()  # 修复原脚本bug：缺少ln.
+            ln = ln.strip()
             if not ln:
                 continue
             try:
                 items.append(json.loads(ln))
             except Exception as e:
-                print(f"警告：跳过无效JSON行 {ln[:50]}... 错误：{str(e)}")
+                print(f"Warning: Skip invalid JSON line {ln[:50]}... Error: {str(e)}")
                 continue
         return items
     return []
 
 def extract_args_count(action):
-    """提取action中的参数数量（对齐用户日志中的args_count）"""
+    """Extract number of arguments in action (align with args_count in logs)"""
     if not isinstance(action, dict):
         return 0
     args = action.get('arguments') or action.get('args') or {}
@@ -146,10 +142,10 @@ def extract_args_count(action):
     return 0
 
 def extract_item(sample, idx=None):
-    """提取采样所需的元数据（修复env_id+补充args_count+严格提取success）"""
+    """Extract metadata for sampling (fix env_id + add args_count + strictly extract success)"""
     item = {'orig': sample, 'orig_index': idx}
     
-    # 1. 修复env_id提取
+    # 1. Fix env_id extraction
     env_id = sample.get('env_code')
     if not env_id:
         env_id = sample.get('env_id') or sample.get('env') or sample.get('environment')
@@ -158,7 +154,7 @@ def extract_item(sample, idx=None):
         env_id = env_id or sd.get('env_code') or sd.get('env_id') or sd.get('env')
     item['env_id'] = env_id or None
 
-    # 2. 提取observation_content
+    # 2. Extract observation_content
     obs = None
     if sd and isinstance(sd, dict):
         ob = sd.get('observation')
@@ -174,7 +170,7 @@ def extract_item(sample, idx=None):
             obs = ob
     item['observation_content'] = obs or ''
 
-    # 3. 提取change_count
+    # 3. Extract change_count
     change_count = None
     if sample.get('change_count') is not None:
         change_count = sample['change_count']
@@ -189,24 +185,24 @@ def extract_item(sample, idx=None):
         change_count = None
     item['change_count'] = change_count
 
-    # 4. 提取args_count
+    # 4. Extract args_count
     args_count = 0
     if sd and isinstance(sd, dict):
         action = sd.get('action')
         args_count = extract_args_count(action)
     item['args_count'] = args_count
 
-    # 5. 【核心新增】严格提取success（与评估脚本完全一致）
+    # 5. Strictly extract success (fully consistent with evaluation script)
     item['success'] = get_success_from_observation(sample)
 
-    # 调试日志
+    # Debug log
     if idx is not None and idx < 10:
-        print(f"调试：样本{idx} → env_id={item['env_id']}, change_count={item['change_count']}, args_count={item['args_count']}, success={item['success']}")
+        print(f"Debug: Sample {idx} → env_id={item['env_id']}, change_count={item['change_count']}, args_count={item['args_count']}, success={item['success']}")
     
     return item
 
 def pick_max_coverage(candidates, target, used_envs=None):
-    """优先选择未使用过的env_id，最大化环境覆盖"""
+    """Prioritize unused env_id to maximize environment coverage"""
     used_envs = used_envs or set()
     selected = []
     if not candidates or target <= 0:
@@ -246,24 +242,24 @@ def pick_max_coverage(candidates, target, used_envs=None):
     return selected[:target], used_envs
 
 def sample_false_20(false_items):
-    """第一大类：抽取【success=False】的false样本20条"""
-    # 【强约束】仅保留success=False的样本
+    """Category 1: Sample 20 false samples with success=False"""
+    # 【Strict Constraint】Only keep samples with success=False
     valid_false = [it for it in false_items if it.get('success') is False]
-    print(f"📥 有效false样本(success=False)：{len(valid_false)} 条")
+    print(f"📥 Valid false samples (success=False): {len(valid_false)} items")
     
     target = 20
     selected, used_envs = pick_max_coverage(valid_false, target)
-    print(f"✅ 第一大类 - false_20：抽取 {len(selected)} 条")
+    print(f"✅ Category 1 - false_20: Sampled {len(selected)} items")
     return selected, used_envs
 
 def sample_true_0_subset(true_items):
-    """第一大类：抽取【success=True】的true样本中change_count=0的子集（args_count=0/1 各40）"""
-    # 【强约束】仅保留success=True的样本
+    """Category 1: Sample true samples with change_count=0 (40 for args_count=0/1 each) from success=True samples"""
+    # 【Strict Constraint】Only keep samples with success=True
     valid_true = [it for it in true_items if it.get('success') is True]
     true_0_items = [it for it in valid_true if it.get('change_count') == 0]
-    print(f"📥 有效true样本(success=True)：{len(valid_true)} 条")
-    print(f"📥 true文件中change_count==0的样本总数：{len(true_0_items)}")
-    
+    print(f"📥 Valid true samples (success=True): {len(valid_true)} items")
+    print(f"📥 Total samples with change_count==0 in true file: {len(true_0_items)}")
+  
     true_0_args_0 = [it for it in true_0_items if it.get('args_count') == 0]
     true_0_args_1 = [it for it in true_0_items if it.get('args_count') == 1]
     
@@ -272,32 +268,32 @@ def sample_true_0_subset(true_items):
     sel_0, used_envs_0 = pick_max_coverage(true_0_args_0, target_0)
     sel_1, used_envs_1 = pick_max_coverage(true_0_args_1, target_1, used_envs_0)
     
-    print(f"✅ 第一大类 - true_0_args_0：抽取 {len(sel_0)} 条")
-    print(f"✅ 第一大类 - true_0_args_1：抽取 {len(sel_1)} 条")
-    
+    print(f"✅ Category 1 - true_0_args_0: Sampled {len(sel_0)} items")
+    print(f"✅ Category 1 - true_0_args_1: Sampled {len(sel_1)} items")
+     
     return sel_0 + sel_1, used_envs_1
 
 def sample_true_change_count_buckets(true_items, used_envs):
     """
-    第二大类：按change_count分桶抽取（仅保留success=True的有效样本）
-    核心修改：count=1(25) + count=2(25)，其余各50
+    Category 2: Sample by change_count buckets (only keep valid samples with success=True)
+    Core Modification: count=1(25) + count=2(25), 50 for others
     """
-    # 【强约束】仅保留success=True的样本
+    # 【Strict Constraint】Only keep samples with success=True
     valid_true = [it for it in true_items if it.get('success') is True]
     true_non_0 = [it for it in valid_true if it.get('change_count', 0) > 0]
     
-    # 🔥 关键修改：拆分 1-2 为独立桶，各25条
+    # Split 1-2 into independent buckets, 25 items each
     buckets = {
-        'simple_1':  [it for it in true_non_0 if it.get('change_count', 0) == 1],   # count=1 → 25条
-        'simple_2':  [it for it in true_non_0 if it.get('change_count', 0) == 2],   # count=2 → 25条
-        'medium_3':  [it for it in true_non_0 if it.get('change_count', 0) == 3],     # 3 → 50
-        'medium_4':  [it for it in true_non_0 if it.get('change_count', 0) == 4],     # 4 → 50
-        'medium_5':  [it for it in true_non_0 if it.get('change_count', 0) == 5],     # 5 → 50
-        'medium_6':  [it for it in true_non_0 if it.get('change_count', 0) == 6],     # 6 → 50
-        'difficult': [it for it in true_non_0 if 7 <= it.get('change_count', 0) <= 12] #7-12→50
+        'simple_1':  [it for it in true_non_0 if it.get('change_count', 0) == 1],   
+        'simple_2':  [it for it in true_non_0 if it.get('change_count', 0) == 2],   
+        'medium_3':  [it for it in true_non_0 if it.get('change_count', 0) == 3],     
+        'medium_4':  [it for it in true_non_0 if it.get('change_count', 0) == 4],    
+        'medium_5':  [it for it in true_non_0 if it.get('change_count', 0) == 5],     
+        'medium_6':  [it for it in true_non_0 if it.get('change_count', 0) == 6],    
+        'difficult': [it for it in true_non_0 if 7 <= it.get('change_count', 0) <= 12] 
     }
     
-    # 🔥 关键修改：指定每个桶的抽取数量
+    # Key Modification: Specify sampling quantity for each bucket
     bucket_targets = {
         'simple_1': 25,
         'simple_2': 25,
@@ -313,14 +309,14 @@ def sample_true_change_count_buckets(true_items, used_envs):
         target = bucket_targets[bucket_name]
         sel, used_envs = pick_max_coverage(items, target, used_envs)
         selected.extend(sel)
-        # 打印日志
+        # Print log
         label = bucket_name.replace('simple_','count=') if 'simple' in bucket_name else bucket_name
-        print(f"✅ 第二大类 - {bucket_name} ({label})：抽取 {len(sel)} 条")
+        print(f"✅ Category 2 - {bucket_name} ({label}): Sampled {len(sel)} items")
     
     return selected, used_envs
 
 def write_combined_output(selected, out_path, category_stats):
-    """写入合并后的样本，并打印统计信息"""
+    """Write combined samples and print statistics"""
     arr = [it['orig'] for it in selected]
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8') as f:
@@ -329,17 +325,17 @@ def write_combined_output(selected, out_path, category_stats):
     env_ids = set(it.get('env_id') for it in selected if it.get('env_id') is not None)
     total_env = len(env_ids) if env_ids else 0
     
-    print(f"\n📤 最终写入 {len(arr)} 条样本到 {out_path}")
-    print(f"📊 各分类数量统计：")
+    print(f"\n📤 Finally wrote {len(arr)} samples to {out_path}")
+    print(f"📊 Category quantity statistics:")
     for cat, count in category_stats.items():
-        print(f"   {cat}：{count} 条")
-    print(f"🌐 总覆盖env_id数量：{total_env}")
+        print(f"   {cat}：{count} items")
+    print(f"🌐 Total covered env_id count: {total_env}")
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--false_in', default='/data/EnvScaler/interact_with_env/result/7.false_samples_delete_error.json')
-    parser.add_argument('--true_in', default='/data/EnvScaler/interact_with_env/result/7.true_samples_delete_error.json')
-    parser.add_argument('--out', default='/data/EnvScaler/interact_with_env/result/9.choice_final_combined.json')
+    parser.add_argument('--false_in', default='/EnvScaler/result/7.false_samples_delete_error.json')
+    parser.add_argument('--true_in', default='/EnvScaler/result/7.true_samples_delete_error.json')
+    parser.add_argument('--out', default='/EnvScaler/result/9.choice_final_combined.json')
     parser.add_argument('--seed', type=int, default=42)
     args = parser.parse_args()
 
@@ -348,12 +344,12 @@ def main():
     false_path = args.false_in if os.path.isabs(args.false_in) else os.path.join(cwd, args.false_in)
     true_path = args.true_in if os.path.isabs(args.true_in) else os.path.join(cwd, args.true_in)
 
-    # 加载数据
+    # Load data
     false_data = load_input(false_path)
     true_data = load_input(true_path)
-    print(f"📥 加载原始数据：false样本{len(false_data)}条，true样本{len(true_data)}条")
+    print(f"📥 Load raw data: {len(false_data)} false samples, {len(true_data)} true samples")
 
-    # 提取元数据（包含success字段）
+    # Extract metadata (including success field)
     false_items = [extract_item(s, idx=i) for i, s in enumerate(false_data)]
     true_items = [extract_item(s, idx=i) for i, s in enumerate(true_data)]
 
@@ -361,22 +357,22 @@ def main():
     all_selected = []
     category_stats = {}
 
-    # 1. 采样【success=False】的false_20
+    # 1. Sample false_20 with success=False
     sel_false_20, used_envs = sample_false_20(false_items)
     all_selected.extend(sel_false_20)
     category_stats['category1_false_20'] = len(sel_false_20)
 
-    # 2. 采样【success=True】的true_0_args_0/1
+    # 2. Sample true_0_args_0/1 with success=True
     sel_true_0, used_envs = sample_true_0_subset(true_items)
     all_selected.extend(sel_true_0)
     category_stats['category1_true_0_args_0'] = len([it for it in sel_true_0 if it.get('args_count') == 0])
     category_stats['category1_true_0_args_1'] = len([it for it in sel_true_0 if it.get('args_count') == 1])
 
-    # 3. 采样【success=True】的change_count分桶
+    # 3. Sample change_count buckets with success=True
     sel_true_buckets, used_envs = sample_true_change_count_buckets(true_items, used_envs)
     all_selected.extend(sel_true_buckets)
     
-    # 🔥 统计修改后的分类
+    # 🔥 Count modified categories
     bucket_names = ['simple_1', 'simple_2', 'medium_3', 'medium_4', 'medium_5', 'medium_6', 'difficult']
     for bn in bucket_names:
         count = len([it for it in sel_true_buckets if 
@@ -389,7 +385,7 @@ def main():
                     (bn == 'difficult' and 7<=it.get('change_count',0)<=12)])
         category_stats[f'category2_{bn}'] = count
 
-    # 写入最终文件
+    # Write final file
     write_combined_output(all_selected, args.out, category_stats)
 
 if __name__ == '__main__':

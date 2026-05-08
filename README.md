@@ -144,7 +144,7 @@ EnvSimBench/
 ├── Benchmark/                 # 400 evaluation samples + executor labels
 ├── Construction/              # Trajectory collection & three-axis stratification pipeline
 ├── Evaluation/                # Frontier LLM evaluation harness (FM / CM metrics)
-├── EnvScaler/                       # Supervised fine-tuning (LlamaFactory-based)
+├── EnvScaler/                 # Downstream synthesis-pipeline integration (SFT data prep)
 ├── Figs/                      # Figures used in the paper / README
 └── requirements.txt
 ```
@@ -168,7 +168,7 @@ cd EnvSimBench
 pip install -r requirements.txt
 ```
 
-> SFT / RL training pull additional dependencies — see [`sft/README.md`](sft/README.md) and [`rl/README.md`](rl/README.md).
+> Training relies on **[LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory)**. Please follow its official installation guide to set up `llamafactory-cli` and the matching `vllm` runtime before running the training/serving scripts below.
 
 ### 3. Configure your LLM service
 
@@ -180,15 +180,43 @@ OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-#### Option B — Self-host a model with vLLM
+#### Option B — Self-host the EnvSimBench-Model with LLaMA-Factory + vLLM
 
 ```bash
-vllm serve Louie-CookieApril/EnvSimBench-Model \
-    --host 0.0.0.0 --port 8000 \
-    --trust-remote-code
+DISABLE_VERSION_CHECK=1 llamafactory-cli api \
+  --model_name_or_path saves/qwen3-4b-Base-noreasoning-selectedByTaskid-Change-balance2 \
+  --template qwen \
+  --infer_backend vllm \
+  --vllm_maxlen 16384 \
+  --vllm_gpu_util 0.9 \
+  --vllm_enforce_eager \
+  --no_enable_thinking
 ```
 
-> ⚠️ Make sure the deployed service supports a **Function Calling (FC) interface** — see the [vLLM OpenAI-compatible server docs](https://docs.vllm.ai/en/stable/serving/openai_compatible_server/).
+The service exposes an OpenAI-compatible `/v1/chat/completions` endpoint. To call it from another machine, point `OPENAI_BASE_URL` at the GPU node's IP (find it via `ip a` → `bond0`):
+
+```bash
+export OPENAI_API_KEY="dummy"
+export OPENAI_BASE_URL="http://<GPU_NODE_IP>:8013/v1"
+export PORT=8013
+```
+
+A quick sanity check:
+
+```bash
+python -c "
+import requests
+resp = requests.post(
+    f'{__import__(\"os\").environ[\"OPENAI_BASE_URL\"]}/chat/completions',
+    json={
+        'model': 'models/Qwen/Qwen3-4B-Base',
+        'messages': [{'role': 'user', 'content': '你好，请介绍一下你自己。'}],
+        'max_tokens': 100,
+    },
+)
+print(resp.json()['choices'][0]['message']['content'])
+"
+```
 
 ### 4. Download the benchmark
 
@@ -201,45 +229,106 @@ huggingface-cli download Louie-CookieApril/EnvSimBench \
 
 ## 🧪 Running the Benchmark
 
-Evaluate any model under the constraint-driven MDP formulation:
+Evaluate any model under the constraint-driven MDP formulation using the script in `Evaluation/`:
 
 ```bash
-cd evaluation
-python run_eval.py \
-    --model gpt-4o \
-    --data ../data/Benchmark \
-    --output ./results/gpt-4o
+cd Evaluation
+python evaluate.py \
+  --input ./eval/9.choice_final_combined-167env.json \
+  --model qwen3_4B \
+  --max_samples 400 \
+  --max_workers 3
 ```
+
+Arguments:
+
+| Flag | Description |
+| --- | --- |
+| `--input` | Path to the benchmark JSON (e.g. `9.choice_final_combined-167env.json`, 400 samples / 167 envs). |
+| `--model` | Model identifier — either a hosted API name (`gpt-4o`, `deepseek-v3.2`, …) or a local key like `qwen3_4B` that maps to your self-hosted endpoint. |
+| `--max_samples` | Cap on samples to evaluate (use `400` for the full benchmark). |
+| `--max_workers` | Concurrency for inference requests. |
 
 Each prompt instantiates `(s_t, a_t, code(a_t))` and is scored by two **binary, programmatic** metrics:
 
 - **Feedback Match (FM)** — exact equality between predicted observation `ô_t` and ground-truth `o_t`.
-- **Config Match (CM)** — whether predicted Δ-operations, applied to `s_t`, reproduce `s′_t` exactly. CM is invariant to format conventions and is the primary cross-model reasoning metric.
+- **Config Match (CM)** — whether predicted Δ-operations, applied to `s_t`, reproduce `s′_t` exactly. CM is invariant to output-format conventions and is the primary cross-model reasoning metric.
 
-Per-axis breakdowns (Failure / No-Change / Simple / Medium / Difficult, plus per-`|Δ|` slices) are written to `./results/<model>/`.
+Per-axis breakdowns (Failure / No-Change / Simple / Medium / Difficult, plus per-`|Δ|` slices) are written next to the input JSON.
 
 ---
 
 ## 🏋️ Training Your Own Simulator
 
-We release the SFT data and the **Balance2** mixture used to train our 4B model. To reproduce:
+We release the SFT data and the **Balance2** mixture used to train our 4B model. Training is implemented on top of **LLaMA-Factory** with full-parameter SFT + DeepSpeed ZeRO-3 on 2× A800 (80 GB) GPUs.
+
+### 1. Fetch the SFT data
 
 ```bash
-# 1. Fetch SFT data
 huggingface-cli download Louie-CookieApril/EnvSimBench \
     --repo-type dataset --local-dir ./data
+```
 
-# 2. Run SFT (full-parameter, 2×A800 80GB)
-cd sft
-bash run_sft.sh
+Register the dataset in your LLaMA-Factory `data/dataset_info.json` under the key `13.SFT-data-noreasoning-selectedByTaskid-Change-balance2`.
 
-# 3. (Optional) Run RL stage
-cd ../rl
-bash run_rl.sh
+### 2. Run full-parameter SFT
 
-# 4. Evaluate your checkpoint
-cd ../evaluation
-python run_eval.py --model ./outputs/ckpt-final --data ../data/Benchmark
+```bash
+# NCCL / multi-GPU setup
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1   # disable if no IB NIC
+export CUDA_VISIBLE_DEVICES=0,1
+
+FORCE_TORCHRUN=1 NPROC_PER_NODE=2 DISABLE_VERSION_CHECK=1 llamafactory-cli train \
+  --model_name_or_path models/Qwen/Qwen3-4B-Base \
+  --template qwen \
+  --dataset 13.SFT-data-noreasoning-selectedByTaskid-Change-balance2 \
+  --dataset_dir data \
+  --finetuning_type full \
+  --output_dir saves/qwen3-4b-Base-noreasoning-selectedByTaskid-Change-balance2 \
+  --per_device_train_batch_size 1 \
+  --gradient_accumulation_steps 16 \
+  --learning_rate 2e-5 \
+  --num_train_epochs 3 \
+  --bf16 \
+  --overwrite_output_dir \
+  --ddp_find_unused_parameters false \
+  --cutoff_len 8192 \
+  --do_train \
+  --save_strategy steps \
+  --save_steps 200 \
+  --save_total_limit 3 \
+  --ddp_timeout 18000 \
+  --flash_attn fa2 \
+  --gradient_checkpointing true \
+  --lr_scheduler_type cosine \
+  --warmup_ratio 0.05 \
+  --logging_steps 10 \
+  --deepspeed ds_z3_config.json
+```
+
+### 3. Serve the trained checkpoint
+
+```bash
+DISABLE_VERSION_CHECK=1 llamafactory-cli api \
+  --model_name_or_path saves/qwen3-4b-Base-noreasoning-selectedByTaskid-Change-balance2 \
+  --template qwen \
+  --infer_backend vllm \
+  --vllm_maxlen 16384 \
+  --vllm_gpu_util 0.9 \
+  --vllm_enforce_eager \
+  --no_enable_thinking
+```
+
+### 4. Evaluate
+
+```bash
+cd Evaluation
+python evaluate.py \
+  --input ./eval/9.choice_final_combined-167env.json \
+  --model qwen3_4B \
+  --max_samples 400 \
+  --max_workers 3
 ```
 
 > **Composition matters more than volume.** Mirroring the empirical `|Δ|` distribution of source environments (1 K failure + 1 K no-change + 2 K simple-change + 2.23 K complex-change ≈ 6.23 K total) outperforms naïve scaling at the 5 K-sample regime.

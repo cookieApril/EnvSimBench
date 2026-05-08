@@ -2,13 +2,13 @@ import json
 import re
 from pathlib import Path
 
-# ===================== 路径配置 =====================
-INPUT_PATH = "/data/EnvScaler/interact_with_env/result/12.select-SFT-data-noreasoning-selectedByTaskid-Change-balance2.json"
-OUTPUT_PATH = "/data/EnvScaler/interact_with_env/result/13.SFT-data-noreasoning-selectedByTaskid-Change-balance2.json"
+# ===================== Path Configuration =====================
+INPUT_PATH = "/EnvScaler/result/12.select-SFT-data-noreasoning.json"
+OUTPUT_PATH = "/EnvScaler/result/13.sft_data_alpaca_en.json"
 
-# ================ 核心工具函数 ================
+# ================ Core Utility Functions ================
 def action_to_call(action):
-    """将 action 转换为工具调用字符串"""
+    """Convert action to tool call string"""
     if not isinstance(action, dict):
         return str(action)
     name = action.get('name') or action.get('action') or 'call'
@@ -20,7 +20,7 @@ def action_to_call(action):
     return f"{name}({arg_str})"
 
 def diff_dicts(before, after, prefix=""):
-    """递归对比字典，生成配置变更列表"""
+    """Recursively compare dictionaries and generate configuration change list"""
     changes = []
     before = before or {}
     after = after or {}
@@ -47,29 +47,29 @@ def diff_dicts(before, after, prefix=""):
     return changes
 
 def normalize_text(value):
-    """清理非法转义字符，确保JSON可解析"""
+    """Clean invalid escape characters to ensure JSON parsability"""
     if value is None:
         return ""
     if isinstance(value, str):
-        # 仅保留合法转义：\n \t \r \"，其余反斜杠转义
+        # Only keep valid escapes: \n \t \r \", escape other backslashes
         value = re.sub(r'\\(?!n|t|r|")', r"\\\\", value)
-        value = value.replace("\x00", "")  # 移除空字符
-        value = value.replace("\r", "")    # 移除回车符
+        value = value.replace("\x00", "")  # Remove null characters
+        value = value.replace("\r", "")    # Remove carriage returns
         return value
     try:
-        # 标准序列化，无兼容参数
+        # Standard serialization without compatibility parameters
         return json.dumps(value, ensure_ascii=False, indent=2)
     except Exception:
         return normalize_text(str(value))
 
 def clean_json_string(json_str):
-    """修复JSON格式：移除多余逗号、首尾空格"""
+    """Fix JSON format: remove redundant commas, leading and trailing spaces"""
     json_str = json_str.strip()
     json_str = re.sub(r',\s*}', '}', json_str)
     json_str = re.sub(r',\s*]', ']', json_str)
     return json_str
 
-# ===================== 数据转换主逻辑 =====================
+# ===================== Main Data Conversion Logic =====================
 with open(INPUT_PATH, 'r', encoding='utf-8') as f:
     your_data = json.load(f)
 
@@ -77,23 +77,23 @@ alpaca_data = []
 
 for sample_idx, sample in enumerate(your_data):
     try:
-        # 1. 读取核心字段
+        # 1. Read core fields
         task_full = normalize_text(sample["task_info"]["task"]).strip()
         real_env_code = normalize_text(sample.get("env_code", ""))
         step_detail = sample.get("step_detail", {})
         
-        # 2. 提取配置、动作、观测
+        # 2. Extract configuration, action, observation
         config_before = step_detail.get("config_before", {})
         config_after = step_detail.get("config_after", {})
         action = step_detail.get("action", {})
         observation = step_detail.get("observation", {})
         
-        # 3. 生成标准字段
+        # 3. Generate standard fields
         tool_call = action_to_call(action)
         real_changes = diff_dicts(config_before, config_after)
         obs_content = observation.get("content", "") if isinstance(observation, dict) else normalize_text(observation)
 
-        # 4. 构造指令
+        # 4. Construct instruction
         instruction = f"""You are simulating a task execution environment. Given the environment code, initial configuration, and tool call, return the exact environment feedback and configuration changes.
 
 Environment Code:
@@ -101,7 +101,7 @@ Environment Code:
 
 Execute the tool call strictly and output the standard result."""
 
-        # 5. 构造输入输出（无兼容参数）
+        # 5. Construct input and output (no compatibility parameters)
         input_text = json.dumps({
             "initial_config": config_before,
             "tool_call": tool_call
@@ -114,7 +114,7 @@ Execute the tool call strictly and output the standard result."""
         }, ensure_ascii=False, indent=2)
         output_text = normalize_text(output_text)
 
-        # 6. 加入数据集
+        # 6. Add to dataset
         alpaca_data.append({
             "instruction": instruction,
             "input": input_text,
@@ -122,10 +122,10 @@ Execute the tool call strictly and output the standard result."""
         })
         
     except Exception as e:
-        print(f"⚠️ 处理样本 {sample_idx} 时出错：{str(e)[:100]}，跳过该样本")
+        print(f"⚠️ Error processing sample {sample_idx}: {str(e)[:100]}, skipping this sample")
         continue
 
-# 保存为合法 JSONL 格式
+# Save as valid JSONL format
 output_path = Path(OUTPUT_PATH)
 output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -138,5 +138,5 @@ with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         except:
             continue
 
-print(f"✅ 转换完成！共生成 {len(alpaca_data)} 条有效训练样本")
-print(f"✅ 数据集已保存至：{OUTPUT_PATH}")
+print(f"✅ Conversion completed! Generated {len(alpaca_data)} valid training samples in total")
+print(f"✅ Dataset saved to: {OUTPUT_PATH}")

@@ -98,8 +98,8 @@ def process_file(inpath, outpath):
 
 def main():
     p = argparse.ArgumentParser(description="Analyze config changes per step and produce simplified trajectories.")
-    p.add_argument('--input', default="/data/EnvScaler/interact_with_env/result/1.tra_3458sample.json")
-    p.add_argument('-o', '--output', help='Output JSON file (pretty array)', default="/data/EnvScaler/interact_with_env/result/2.add_before_config_delete_some_message.jsonl")
+    p.add_argument('--input', default="/EnvScaler/result/1.tra_3458sample.json") #JSON file generated from file 1
+    p.add_argument('-o', '--output', help='Output JSON file (pretty array)', default="/EnvScaler/result/2.add_before_config_delete_some_message.jsonl")
     args = p.parse_args()
 
     inpath = args.input

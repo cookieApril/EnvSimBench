@@ -129,8 +129,8 @@ def load_input(path):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--input', default="/data/EnvScaler/interact_with_env/result/2.add_before_config_delete_some_message.jsonl")
-    p.add_argument('-o', '--output', help='Output JSON file (pretty array)', default="/data/EnvScaler/interact_with_env/result/3.add_config_change.json")
+    p.add_argument('--input', default="/EnvScaler/result/2.add_before_config_delete_some_message.jsonl")
+    p.add_argument('-o', '--output', help='Output JSON file (pretty array)', default="/EnvScaler/result/3.add_config_change.json")
     args = p.parse_args()
 
     inp = args.input

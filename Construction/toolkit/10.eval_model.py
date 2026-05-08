@@ -9,9 +9,9 @@ import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# ====================== 断点续跑工具函数（新增） ======================
+# ====================== Checkpoint Resume Utility Functions (New) ======================
 def load_checkpoint(checkpoint_path):
-    """加载断点文件，返回已完成的 (sample_index, step_index) 集合"""
+    """Load checkpoint file, return set of completed (sample_index, step_index)"""
     completed = set()
     if not os.path.exists(checkpoint_path):
         return completed
@@ -22,11 +22,11 @@ def load_checkpoint(checkpoint_path):
                 if isinstance(item, list) and len(item) == 2:
                     completed.add((item[0], item[1]))
     except Exception as e:
-        print(f"⚠️  加载断点失败，将从头开始评估：{str(e)}", file=sys.stderr)
+        print(f"⚠️ Failed to load checkpoint, will start evaluation from scratch: {str(e)}", file=sys.stderr)
     return completed
 
 def save_checkpoint(checkpoint_path, completed_tasks):
-    """保存断点文件，写入已完成的任务列表"""
+    """Save checkpoint file, write completed task list"""
     try:
         data = {
             "completed": [[s_idx, step_idx] for s_idx, step_idx in completed_tasks],
@@ -35,7 +35,7 @@ def save_checkpoint(checkpoint_path, completed_tasks):
         with open(checkpoint_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"⚠️  保存断点失败：{str(e)}", file=sys.stderr)
+        print(f"⚠️ Failed to save checkpoint: {str(e)}", file=sys.stderr)
 # ======================================================================
 
 try:
@@ -483,14 +483,13 @@ def classify_step(step):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--input', default='/data/EnvScaler/interact_with_env/result/9.choice_final_combined-167env.json')
+    p.add_argument('--input', default='/EnvScaler/result/9.choice_final_combined-167env.json')
     p.add_argument('-o', '--output', default=None, help='Output JSON file')
     p.add_argument('--model', default='gemini-3.1-pro-preview')
     p.add_argument('--temperature', type=float, default=0.0)
     p.add_argument('--max_samples', type=int, default=400)
     p.add_argument('--max_workers', type=int, default=5)
     p.add_argument('--thinking', type=bool, default=False)
-    # ====================== 新增断点参数 ======================
     p.add_argument('--checkpoint', default=None, help='Checkpoint file path for resuming evaluation')
     # =========================================================
     args = p.parse_args()
@@ -508,17 +507,17 @@ def main():
     if args.output is None:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_model = args.model.replace('/', '_')
-        args.output = f'/data/EnvScaler/interact_with_env/result/10.{safe_model}_eval_results_{timestamp}.json'
+        args.output = f'/EnvScaler/result/10.{safe_model}_eval_results_{timestamp}.json'
 
-    # ====================== 初始化断点（新增） ======================
+    # ====================== Initialize Checkpoint (New) ======================
     if args.checkpoint is None:
-        # 自动生成断点文件路径（与输出文件同目录）
+        # Auto-generate checkpoint path (same directory as output file)
         base_dir = os.path.dirname(args.output)
         os.makedirs(base_dir, exist_ok=True)
         args.checkpoint = os.path.join(base_dir, "eval_checkpoint.json")
-    # 加载已完成任务
+    # Load completed tasks
     completed_tasks = load_checkpoint(args.checkpoint)
-    print(f"✅ 加载断点完成：已完成 {len(completed_tasks)} 个评估步骤")
+    print(f"✅ Checkpoint loaded: {len(completed_tasks)} evaluation steps completed")
     # ==============================================================
 
     samples = []
@@ -531,7 +530,7 @@ def main():
         print(f'Error loading input {args.input}: {e}', file=sys.stderr)
         return
 
-    # 1. 收集所有待评估任务 + 过滤已完成（修改）
+    # 1. Collect all pending tasks + filter completed ones
     tasks = []
     task_count = 0
     for s_idx, sample in enumerate(samples):
@@ -539,15 +538,15 @@ def main():
         for step_idx, step in enumerate(steps):
             if args.max_samples and task_count >= args.max_samples:
                 break
-            # 跳过已完成的任务
+            # Skip completed tasks
             if (s_idx, step_idx) in completed_tasks:
                 continue
             tasks.append((s_idx, step_idx, step))
             task_count += 1
     total_steps = len(tasks)
     if total_steps == 0:
-        print("🎉 所有步骤已评估完成！", file=sys.stderr)
-        # 保存最终结果
+        print("🎉 All steps have been evaluated!", file=sys.stderr)
+        # Save final results
         out_obj = {
             'model': args.model,
             'results': [],
@@ -556,9 +555,9 @@ def main():
         with open(args.output, 'w', encoding='utf-8') as f:
             json.dump(out_obj, f, indent=2, ensure_ascii=False)
         return
-    print(f"🚀 本次需要评估：{total_steps} 个未完成步骤")
+    print(f"🚀 Steps to evaluate in this run: {total_steps}")
 
-    # 2. 初始化统计变量
+    # 2. Initialize statistics variables
     categories = {
         'first_success_false': {'count': 0, 'feedback_matches': 0, 'config_correct': 0},
         'first_change0_args0': {'count': 0, 'feedback_matches': 0, 'config_correct': 0},
@@ -588,10 +587,10 @@ def main():
     difficult_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
 
     results = []
-    stats_lock = threading.Lock()  # 同时保护统计数据 + 断点写入
+    stats_lock = threading.Lock()  # Protect both statistics and checkpoint writing
     pbar = tqdm(total=total_steps, desc='Evaluating steps', unit='step')
 
-    # 3. 并发任务函数（新增：记录已完成任务+保存断点）
+    # 3. Concurrent task function (New: record completed tasks + save checkpoint)
     def process_single_task(task):
         s_idx, step_idx, step = task
         eval_result = evaluate_sample(step, args.model, args.temperature, openai_client, thinking=args.thinking)
@@ -612,17 +611,17 @@ def main():
 
         with stats_lock:
             results.append(result_item)
-            # 总体统计
+            # Overall statistics
             overall_total['count'] += 1
             overall_total['feedback_matches'] += fb_ok
             overall_total['config_correct'] += cfg_ok
-            # 分类统计
+            # Category statistics
             cat = classify_step(step)
             if cat and cat in categories:
                 categories[cat]['count'] += 1
                 categories[cat]['feedback_matches'] += fb_ok
                 categories[cat]['config_correct'] += cfg_ok
-                # 大类统计
+                # Main category statistics
                 if cat.startswith('first'):
                     first_total['count'] += 1
                     first_total['feedback_matches'] += fb_ok
@@ -647,13 +646,13 @@ def main():
                         difficult_total['count'] += 1
                         difficult_total['feedback_matches'] += fb_ok
                         difficult_total['config_correct'] += cfg_ok
-            # ====================== 记录已完成任务+保存断点（新增） ======================
+            # ====================== Record completed task + save checkpoint (New) ======================
             completed_tasks.add((s_idx, step_idx))
             save_checkpoint(args.checkpoint, completed_tasks)
             # ==========================================================================
         pbar.update(1)
 
-    # 4. 执行并发评估
+    # 4. Execute concurrent evaluation
     try:
         with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
             futures = [executor.submit(process_single_task, task) for task in tasks]
@@ -664,10 +663,10 @@ def main():
                     print(f"\nTask failed with error: {str(e)}", file=sys.stderr)
     finally:
         pbar.close()
-        # 最终保存一次断点
+        # Final checkpoint save
         save_checkpoint(args.checkpoint, completed_tasks)
 
-    # 5. 计算百分比
+    # 5. Calculate percentages
     for cat in categories:
         if categories[cat]['count'] > 0:
             categories[cat]['feedback_match_pct'] = categories[cat]['feedback_matches'] / categories[cat]['count'] * 100
@@ -691,7 +690,7 @@ def main():
             difficult_sub[key]['feedback_match_pct'] = None
             difficult_sub[key]['config_correct_pct'] = None
 
-    # 输出JSON
+
     out_obj = {
         'model': args.model,
         'results': results,
@@ -711,13 +710,13 @@ def main():
     with open(args.output, 'w', encoding='utf-8') as f:
         json.dump(out_obj, f, indent=2, ensure_ascii=False)
 
-    # 控制台输出
+    # Console output
     print(f"\nModel evaluated: {args.model}")
     print(f"Concurrent workers: {args.max_workers}")
     print(f"Output saved to: {args.output}")
     print(f"Checkpoint saved to: {args.checkpoint}")
 
-    # 第一大类
+    # First Category
     print("\n=== First Category (success false & change0) ===")
     print("  Subcategories:")
     for name, data in [('success_false', categories['first_success_false']),('change0_args0', categories['first_change0_args0']),('change0_args1', categories['first_change0_args1'])]:
@@ -730,7 +729,7 @@ def main():
     else:
         print("  No samples in First Category.")
 
-    # 第二大类
+    # Second Category
     print("\n=== Second Category (config_change 1-12) ===")
     print("  [Simple Group]")
     for name, data in [('simple_1', categories['second_simple_1']),('simple_2', categories['second_simple_2'])]:
@@ -766,21 +765,21 @@ def main():
     else:
         print("  No samples in Difficult Group.")
 
-    # ✅ 修复：第二大类总览增加非空判断
+    # Second Category Total
     if second_total['count']:
         print(f"\n  Total Second Category: count={second_total['count']}, feedback={second_total['feedback_matches']}/{second_total['count']} ({second_total['feedback_match_pct']:.2f}%), config={second_total['config_correct']}/{second_total['count']} ({second_total['config_correct_pct']:.2f}%)")
     else:
         print("\n  No samples in Second Category.")
 
-    # 总体统计
+    # Overall Statistics
     print("\n=== Overall (both categories) ===")
     if overall_total['count']:
         print(f"  count={overall_total['count']}, feedback={overall_total['feedback_matches']}/{overall_total['count']} ({overall_total['feedback_match_pct']:.2f}%), config={overall_total['config_correct']}/{overall_total['count']} ({overall_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples evaluated.")
 
-    # 完成后提示
-    print(f"\n🎉 评估全部完成！断点已保存，如需重新评估可删除文件：{args.checkpoint}")
+    # Completion prompt
+    print(f"\n🎉 Evaluation fully completed! Checkpoint saved. Delete this file to re-evaluate: {args.checkpoint}")
 
 
 if __name__ == '__main__':

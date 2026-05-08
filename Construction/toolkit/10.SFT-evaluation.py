@@ -9,9 +9,9 @@ import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# ====================== 断点续跑工具函数（新增） ======================
+# ====================== Checkpoint resume utility functions ======================
 def load_checkpoint(checkpoint_path):
-    """加载断点文件，返回已完成的 (sample_index, step_index) 集合"""
+    """Load checkpoint file, return set of completed (sample_index, step_index)"""
     completed = set()
     if not os.path.exists(checkpoint_path):
         return completed
@@ -22,11 +22,12 @@ def load_checkpoint(checkpoint_path):
                 if isinstance(item, list) and len(item) == 2:
                     completed.add((item[0], item[1]))
     except Exception as e:
-        print(f"⚠️  加载断点失败，将从头开始评估：{str(e)}", file=sys.stderr)
+        print(f"⚠️ Failed to load checkpoint, will start evaluation from scratch: {str(e)}", file=sys.stderr)
     return completed
 
+
 def save_checkpoint(checkpoint_path, completed_tasks):
-    """保存断点文件，写入已完成的任务列表"""
+    """Save checkpoint file and write completed task list"""
     try:
         data = {
             "completed": [[s_idx, step_idx] for s_idx, step_idx in completed_tasks],
@@ -35,7 +36,7 @@ def save_checkpoint(checkpoint_path, completed_tasks):
         with open(checkpoint_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"⚠️  保存断点失败：{str(e)}", file=sys.stderr)
+        print(f"⚠️ Failed to save checkpoint: {str(e)}", file=sys.stderr)
 # ======================================================================
 
 try:
@@ -177,10 +178,8 @@ def action_to_call(action):
         arg_str = str(args)
     return f"{name}({arg_str})"
 
-import re
-import json
 
-# 尝试导入 json_repair，如果未安装则设置为 None
+# Try to import json_repair, set to None if not installed
 try:
     from json_repair import repair_json
     REPAIR_AVAILABLE = True
@@ -188,62 +187,131 @@ except ImportError:
     REPAIR_AVAILABLE = False
     repair_json = None
 
+
+def extract_first_json_block(text):
+    """
+    Extract the first complete JSON object using bracket counting.
+    Solve repeated output problem like {...}{EIF{...}{EIF{...} from small models.
+    Only return the first fully closed { ... } block, discard all subsequent repeated content.
+    """
+    depth = 0
+    start = None
+    in_string = False
+    escape_next = False
+
+    for i, ch in enumerate(text):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start is not None:
+                    candidate = text[start:i + 1]
+                    # Try direct parsing
+                    try:
+                        return json.loads(candidate)
+                    except Exception:
+                        # Clean and parse
+                        cleaned = re.sub(r',\s*}', '}', candidate)
+                        cleaned = re.sub(r',\s*]', ']', cleaned)
+                        try:
+                            return json.loads(cleaned)
+                        except Exception:
+                            pass
+                    # Reset to find next block
+                    start = None
+    return None
+
+
 def extract_json(text):
     """
-    从 LLM 响应中提取 JSON 对象，处理不规范输出。
-    1. 去除 <think> 标签（包括未闭合的）
-    2. 提取 markdown 代码块中的内容
-    3. 使用 json_repair 修复（若可用）
-    4. 降级到标准 JSON / ast.literal_eval
+    Extract JSON object from LLM response, handle irregular outputs.
+    Repair priority (high to low):
+    1. Remove  tags (including unclosed ones)
+    2. Truncate at known repeated separators
+    3. Extract content from markdown code block
+    4. Core upgrade: Bracket counting to get first valid JSON block
+    5. Use json_repair for auto repair (if available)
+    6. Fallback to standard json / ast.literal_eval
     """
     if not isinstance(text, str):
         return None
 
-    # ---------- 第一步：清理 <think> 标签 ----------
-    # 移除正确闭合的 <think>...</think>
+    # ---------- Step 1: Clean  tags ----------
     text = re.sub(r'<think>[\s\S]*?</think>', '', text, flags=re.IGNORECASE)
-    # 移除任何未闭合的 <think> 到字符串末尾（防止截断污染）
     text = re.sub(r'<think>[\s\S]*$', '', text, flags=re.IGNORECASE)
 
-    # ---------- 第二步：优先提取 Markdown 代码块 ----------
-    # 匹配 ```json ... ``` 或 ``` ... ```
+    # ---------- Step 2: Truncate known repeated separators ----------
+    # Common repeated messy separators from small models
+    REPEAT_SEPARATORS = [
+        r'\tNdrFc',      
+        r'\{EIF\{',      
+        r'EIF\{',
+    ]
+    for sep_pattern in REPEAT_SEPARATORS:
+        m = re.search(sep_pattern, text)
+        if m:
+            text = text[:m.start()]
+            break
+
+    # ---------- Step 3: Prioritize markdown code block ----------
     code_block_pattern = r"```(?:json)?\s*([\s\S]*?)```"
     m = re.search(code_block_pattern, text, flags=re.IGNORECASE)
     if m:
-        text = m.group(1).strip()
+        block_text = m.group(1).strip()
+        # Try bracket counting on block content first
+        result = extract_first_json_block(block_text)
+        if result is not None:
+            return result
+        try:
+            return json.loads(block_text)
+        except Exception:
+            pass
 
-    # ---------- 第三步：使用 json_repair 修复并解析 ----------
+    # ---------- Step 4: Bracket counting for first valid JSON ----------
+    result = extract_first_json_block(text)
+    if result is not None:
+        return result
+
+    # ---------- Step 5: Use json_repair to fix and parse ----------
     if REPAIR_AVAILABLE:
         try:
-            # return_objects=True 直接返回 Python 字典/列表
             repaired = repair_json(text, return_objects=True)
-            # 如果结果是字典，直接返回；如果是列表且第一个元素是字典，取第一个
             if isinstance(repaired, dict):
                 return repaired
             if isinstance(repaired, list) and len(repaired) == 1 and isinstance(repaired[0], dict):
                 return repaired[0]
-            # 其他情况（例如纯字符串或数字）返回 None
             return None
         except Exception:
-            # 修复失败，继续降级
             pass
 
-    # ---------- 第四步：降级方案 ----------
-    # 尝试标准 JSON 解析
+    # ---------- Step 6: Fallback solution ----------
     try:
         return json.loads(text)
     except Exception:
         pass
 
-    # 尝试 ast.literal_eval（兼容单引号、Python 字面量）
     try:
         import ast
         return ast.literal_eval(text)
     except Exception:
         pass
 
-    # 所有方法都失败
     return None
+
 
 def parse_to_obj(value):
     if isinstance(value, (dict, list)):
@@ -344,22 +412,19 @@ def evaluate_sample(step, model, temperature, openai_client, max_retries=2, thin
     action = step.get('action')
     call_str = action_to_call(action)
 
-    system_prompt = f"Environment code:\n\n{env_code}\n\nInitial config:\n{json.dumps(cfg_before, ensure_ascii=False, indent=2)}\n\nInstructions: You are given the environment code and the initial config. A tool call will be provided; you must predict the environment's textual feedback (exact output string) and any configuration changes that result from executing the tool. Only report config changes using types: add, modify, delete. Output ONLY a JSON object with keys: \"feedback\": string, \"config_changes\": [{{\"type\":..., \"path\":..., \"value\": ...}}]. If no config change, set \"config_changes\": []. Do not output other text."
+    system_prompt = (
+        f"Environment code:\n\n{env_code}\n\n"
+        f"Initial config:\n{json.dumps(cfg_before, ensure_ascii=False, indent=2)}\n\n"
+        f"Instructions: You are given the environment code and the initial config. "
+        f"A tool call will be provided; you must predict the environment's textual feedback "
+        f"(exact output string) and any configuration changes that result from executing the tool. "
+        f"Only report config changes using types: add, modify, delete. "
+        f"Output ONLY a JSON object with keys: "
+        f"\"feedback\": string, \"config_changes\": [{{\"type\":..., \"path\":..., \"value\": ...}}]. "
+        f"If no config change, set \"config_changes\": []. "
+        f"Do not output other text. Do not repeat the JSON. Output exactly one JSON object and stop."
+    )
 
-    # system_prompt = f"""Environment Code:{env_code}
-
-    # Initial Configuration:
-    # {json.dumps(cfg_before, ensure_ascii=False, indent=2)}
-
-    # # STRICT TASK INSTRUCTIONS (MUST COMPLY 100%)
-    # 1.  Given the environment code and initial config, you need to **simulate the complete execution result of the tool call**.
-    # 2.  Output the **FULL, EXACT, UNMODIFIED textual feedback string** that the environment returns after running the tool. This must include all fields (success status, error messages, return values, etc.) — DO NOT omit, simplify, or leave empty.
-    # 3.  Predict all configuration changes caused by the tool. Only use 3 change types: add, modify, delete.
-    # 4.  Output **ONLY a valid JSON object**, NO extra text, NO explanations, NO markdown blocks.
-    # 5.  JSON FORMAT (fixed keys):
-    # - "feedback": string (the complete environment output, full text, no truncation)
-    # - "config_changes": list of objects (each with "type", "path", "value"; empty list if no changes)"""
-   
     user_prompt = f"Tool call: {call_str}\n\nReturn the JSON as specified."
 
     messages = [
@@ -367,17 +432,22 @@ def evaluate_sample(step, model, temperature, openai_client, max_retries=2, thin
         {"role": "user", "content": user_prompt}
     ]
 
+    extra_body = {
+        "repetition_penalty": 1.15,
+        "stop": ["\n\n\n\n", "}{", "{EIF", "NdrFc"],
+    }
+
     resp_text = None
     for attempt in range(max_retries + 1):
         try:
             resp = openai_client.chat.completions.create(
-                model=model, 
-                messages=messages, 
+                model=model,
+                messages=messages,
                 temperature=temperature,
-                max_tokens = 8192,  # 保持 4096 防止截断
-                timeout=600.0
+                max_tokens=4096,      
+                timeout=300.0,
+                extra_body=extra_body,  
             )
-            # 【修改 2】撤销前面强行加 "{" 的拼接，直接读取返回内容
             resp_text = resp.choices[0].message.content
             break
         except Exception as e:
@@ -500,7 +570,7 @@ def classify_step(step):
     if change_count is not None:
         try:
             cc = int(change_count)
-        except:
+        except Exception:
             return None
         if 1 <= cc <= 12:
             if cc == 1:
@@ -539,20 +609,27 @@ def main():
         print('Please set OPENAI_API_KEY in environment')
         return
 
-    openai.api_key = os.environ['OPENAI_API_KEY']
-    openai_client = openai
+    base_url = os.environ.get('OPENAI_BASE_URL', 'http://localhost:8000/v1')
+    api_key = os.environ.get('OPENAI_API_KEY', 'dummy')
+    openai_client = openai.OpenAI(
+        base_url=base_url,
+        api_key=api_key,
+    )
+    print(f"✅ OpenAI client initialized, base_url={base_url}")
 
     if args.output is None:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_model = args.model.replace('/', '_')
-        args.output = f'./eval/result/{safe_model}_3_5_27b_eval_results_{timestamp}.json'
+        args.output = f'./eval/result/{safe_model}_qwen3_4b_base_new_eval_results_{timestamp}.json'
 
     if args.checkpoint is None:
         base_dir = os.path.dirname(args.output)
         os.makedirs(base_dir, exist_ok=True)
-        args.checkpoint = os.path.join(base_dir, "eval_checkpoint_3_5_27b.json")
+        args.checkpoint = os.path.join(base_dir, "eval_checkpoint_qwen3_4b_base_new.json")
+
+    os.makedirs(os.path.dirname(args.output), exist_ok=True)
     completed_tasks = load_checkpoint(args.checkpoint)
-    print(f"✅ 加载断点完成：已完成 {len(completed_tasks)} 个评估步骤")
+    print(f"✅ Checkpoint loaded: {len(completed_tasks)} evaluation steps already completed")
 
     samples = []
     try:
@@ -575,9 +652,10 @@ def main():
                 continue
             tasks.append((s_idx, step_idx, step))
             task_count += 1
+
     total_steps = len(tasks)
     if total_steps == 0:
-        print("🎉 所有步骤已评估完成！", file=sys.stderr)
+        print("🎉 All evaluation steps are already completed!", file=sys.stderr)
         out_obj = {
             'model': args.model,
             'results': [],
@@ -586,7 +664,7 @@ def main():
         with open(args.output, 'w', encoding='utf-8') as f:
             json.dump(out_obj, f, indent=2, ensure_ascii=False)
         return
-    print(f"🚀 本次需要评估：{total_steps} 个未完成步骤")
+    print(f"🚀 Steps to evaluate in this run: {total_steps}")
 
     categories = {
         'first_success_false': {'count': 0, 'feedback_matches': 0, 'config_correct': 0},
@@ -603,7 +681,7 @@ def main():
     first_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
     second_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
     overall_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
-    
+
     simple_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
     medium_total = {'count': 0, 'feedback_matches': 0, 'config_correct': 0}
     difficult_sub = {
@@ -622,8 +700,9 @@ def main():
 
     def process_single_task(task):
         s_idx, step_idx, step = task
-        #改一下false
-        eval_result = evaluate_sample(step, args.model, args.temperature, openai_client, thinking=args.thinking)
+        eval_result = evaluate_sample(
+            step, args.model, args.temperature, openai_client, thinking=args.thinking
+        )
         result_item = {
             'sample_index': s_idx,
             'step_index': step_idx,
@@ -636,7 +715,7 @@ def main():
         change_count_val = step.get('change_count')
         try:
             cc_val = int(change_count_val) if change_count_val is not None else -1
-        except:
+        except Exception:
             cc_val = -1
 
         with stats_lock:
@@ -704,6 +783,7 @@ def main():
         else:
             total_obj['feedback_match_pct'] = None
             total_obj['config_correct_pct'] = None
+
     for key in difficult_sub:
         if difficult_sub[key]['count'] > 0:
             difficult_sub[key]['feedback_match_pct'] = difficult_sub[key]['feedback_matches'] / difficult_sub[key]['count'] * 100
@@ -716,8 +796,26 @@ def main():
         'model': args.model,
         'results': results,
         'summary': {
-            'first_category': {'subcategories': {'success_false': categories['first_success_false'],'change0_args0': categories['first_change0_args0'],'change0_args1': categories['first_change0_args1']}, 'total': first_total},
-            'second_category': {'subcategories': {'simple_1': categories['second_simple_1'],'simple_2': categories['second_simple_2'],'medium_3': categories['second_medium_3'],'medium_4': categories['second_medium_4'],'medium_5': categories['second_medium_5'],'medium_6': categories['second_medium_6'],'difficult_7_12': categories['second_difficult_7_12']}, 'total': second_total},
+            'first_category': {
+                'subcategories': {
+                    'success_false': categories['first_success_false'],
+                    'change0_args0': categories['first_change0_args0'],
+                    'change0_args1': categories['first_change0_args1'],
+                },
+                'total': first_total
+            },
+            'second_category': {
+                'subcategories': {
+                    'simple_1': categories['second_simple_1'],
+                    'simple_2': categories['second_simple_2'],
+                    'medium_3': categories['second_medium_3'],
+                    'medium_4': categories['second_medium_4'],
+                    'medium_5': categories['second_medium_5'],
+                    'medium_6': categories['second_medium_6'],
+                    'difficult_7_12': categories['second_difficult_7_12'],
+                },
+                'total': second_total
+            },
             'overall': overall_total,
             'custom_summary': {
                 'simple_total': simple_total,
@@ -738,63 +836,109 @@ def main():
 
     print("\n=== First Category (success false & change0) ===")
     print("  Subcategories:")
-    for name, data in [('success_false', categories['first_success_false']),('change0_args0', categories['first_change0_args0']),('change0_args1', categories['first_change0_args1'])]:
+    for name, data in [
+        ('success_false', categories['first_success_false']),
+        ('change0_args0', categories['first_change0_args0']),
+        ('change0_args1', categories['first_change0_args1']),
+    ]:
         if data['count']:
-            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} ({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} ({data['config_correct_pct']:.2f}%)")
+            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} "
+                  f"({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} "
+                  f"({data['config_correct_pct']:.2f}%)")
         else:
             print(f"    {name}: count=0")
     if first_total['count']:
-        print(f"  Total: count={first_total['count']}, feedback={first_total['feedback_matches']}/{first_total['count']} ({first_total['feedback_match_pct']:.2f}%), config={first_total['config_correct']}/{first_total['count']} ({first_total['config_correct_pct']:.2f}%)")
+        print(f"  Total: count={first_total['count']}, "
+              f"feedback={first_total['feedback_matches']}/{first_total['count']} "
+              f"({first_total['feedback_match_pct']:.2f}%), "
+              f"config={first_total['config_correct']}/{first_total['count']} "
+              f"({first_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples in First Category.")
 
     print("\n=== Second Category (config_change 1-12) ===")
     print("  [Simple Group]")
-    for name, data in [('simple_1', categories['second_simple_1']),('simple_2', categories['second_simple_2'])]:
+    for name, data in [
+        ('simple_1', categories['second_simple_1']),
+        ('simple_2', categories['second_simple_2']),
+    ]:
         if data['count']:
-            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} ({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} ({data['config_correct_pct']:.2f}%)")
+            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} "
+                  f"({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} "
+                  f"({data['config_correct_pct']:.2f}%)")
         else:
             print(f"    {name}: count=0")
     if simple_total['count']:
-        print(f"  📊 Total Simple: count={simple_total['count']}, feedback={simple_total['feedback_matches']}/{simple_total['count']} ({simple_total['feedback_match_pct']:.2f}%), config={simple_total['config_correct']}/{simple_total['count']} ({simple_total['config_correct_pct']:.2f}%)")
+        print(f"  📊 Total Simple: count={simple_total['count']}, "
+              f"feedback={simple_total['feedback_matches']}/{simple_total['count']} "
+              f"({simple_total['feedback_match_pct']:.2f}%), "
+              f"config={simple_total['config_correct']}/{simple_total['count']} "
+              f"({simple_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples in Simple Group.")
 
     print("\n  [Medium Group]")
-    for name, data in [('medium_3', categories['second_medium_3']),('medium_4', categories['second_medium_4']),('medium_5', categories['second_medium_5']),('medium_6', categories['second_medium_6'])]:
+    for name, data in [
+        ('medium_3', categories['second_medium_3']),
+        ('medium_4', categories['second_medium_4']),
+        ('medium_5', categories['second_medium_5']),
+        ('medium_6', categories['second_medium_6']),
+    ]:
         if data['count']:
-            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} ({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} ({data['config_correct_pct']:.2f}%)")
+            print(f"    {name}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} "
+                  f"({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} "
+                  f"({data['config_correct_pct']:.2f}%)")
         else:
             print(f"    {name}: count=0")
     if medium_total['count']:
-        print(f"  📊 Total Medium: count={medium_total['count']}, feedback={medium_total['feedback_matches']}/{medium_total['count']} ({medium_total['feedback_match_pct']:.2f}%), config={medium_total['config_correct']}/{medium_total['count']} ({medium_total['config_correct_pct']:.2f}%)")
+        print(f"  📊 Total Medium: count={medium_total['count']}, "
+              f"feedback={medium_total['feedback_matches']}/{medium_total['count']} "
+              f"({medium_total['feedback_match_pct']:.2f}%), "
+              f"config={medium_total['config_correct']}/{medium_total['count']} "
+              f"({medium_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples in Medium Group.")
 
     print("\n  [Difficult Group (7-12)]")
-    for cc_num in [7,8,9,10,11,12]:
+    for cc_num in [7, 8, 9, 10, 11, 12]:
         data = difficult_sub[cc_num]
         if data['count']:
-            print(f"    difficult_{cc_num}: count={data['count']}, feedback={data['feedback_matches']}/{data['count']} ({data['feedback_match_pct']:.2f}%), config={data['config_correct']}/{data['count']} ({data['config_correct_pct']:.2f}%)")
+            print(f"    difficult_{cc_num}: count={data['count']}, "
+                  f"feedback={data['feedback_matches']}/{data['count']} "
+                  f"({data['feedback_match_pct']:.2f}%), "
+                  f"config={data['config_correct']}/{data['count']} "
+                  f"({data['config_correct_pct']:.2f}%)")
         else:
             print(f"    difficult_{cc_num}: count=0")
     if difficult_total['count']:
-        print(f"  📊 Total Difficult: count={difficult_total['count']}, feedback={difficult_total['feedback_matches']}/{difficult_total['count']} ({difficult_total['feedback_match_pct']:.2f}%), config={difficult_total['config_correct']}/{difficult_total['count']} ({difficult_total['config_correct_pct']:.2f}%)")
+        print(f"  📊 Total Difficult: count={difficult_total['count']}, "
+              f"feedback={difficult_total['feedback_matches']}/{difficult_total['count']} "
+              f"({difficult_total['feedback_match_pct']:.2f}%), "
+              f"config={difficult_total['config_correct']}/{difficult_total['count']} "
+              f"({difficult_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples in Difficult Group.")
 
     if second_total['count']:
-        print(f"\n  Total Second Category: count={second_total['count']}, feedback={second_total['feedback_matches']}/{second_total['count']} ({second_total['feedback_match_pct']:.2f}%), config={second_total['config_correct']}/{second_total['count']} ({second_total['config_correct_pct']:.2f}%)")
+        print(f"\n  Total Second Category: count={second_total['count']}, "
+              f"feedback={second_total['feedback_matches']}/{second_total['count']} "
+              f"({second_total['feedback_match_pct']:.2f}%), "
+              f"config={second_total['config_correct']}/{second_total['count']} "
+              f"({second_total['config_correct_pct']:.2f}%)")
     else:
         print("\n  No samples in Second Category.")
 
     print("\n=== Overall (both categories) ===")
     if overall_total['count']:
-        print(f"  count={overall_total['count']}, feedback={overall_total['feedback_matches']}/{overall_total['count']} ({overall_total['feedback_match_pct']:.2f}%), config={overall_total['config_correct']}/{overall_total['count']} ({overall_total['config_correct_pct']:.2f}%)")
+        print(f"  count={overall_total['count']}, "
+              f"feedback={overall_total['feedback_matches']}/{overall_total['count']} "
+              f"({overall_total['feedback_match_pct']:.2f}%), "
+              f"config={overall_total['config_correct']}/{overall_total['count']} "
+              f"({overall_total['config_correct_pct']:.2f}%)")
     else:
         print("  No samples evaluated.")
 
-    print(f"\n🎉 评估全部完成！断点已保存，如需重新评估可删除文件：{args.checkpoint}")
+    print(f"\n🎉 Evaluation completed! Checkpoint saved. Delete the file to re-run evaluation: {args.checkpoint}")
 
 
 if __name__ == '__main__':

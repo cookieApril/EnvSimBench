@@ -21,6 +21,9 @@
   </a>
 </div>
 
+<div align="center">
+  <a href="README.md">English</a> | <a href="README_ZH.md">中文</a>
+</div>
 <h5 align="center">If you find our work helpful, please give us a star ⭐ on GitHub. We greatly appreciate your support.</h5>
 
 ---

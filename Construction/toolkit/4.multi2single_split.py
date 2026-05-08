@@ -3,38 +3,38 @@ import os
 
 def split_multi_round_to_single_round(input_file, output_file):
     """
-    将多轮轨迹的JSON文件拆分为单轮样本（保留每一步的所有信息）
-    :param input_file: 输入JSON文件路径（包含多轮样本）
-    :param output_file: 输出JSON文件路径（拆分后的单轮样本）
+    Split multi-round trajectory JSON file into single-round samples (retain all information of each step)
+    :param input_file: Path to input JSON file (contains multi-round samples)
+    :param output_file: Path to output JSON file (split single-round samples)
     """
-    # 1. 读取输入文件，支持 JSON 或 JSONL
+    # 1. Read input file, support JSON or JSONL format
     try:
         with open(input_file, 'r', encoding='utf-8') as f:
             text = f.read()
     except FileNotFoundError:
-        print(f"错误：输入文件 {input_file} 不存在")
+        print(f"Error: Input file {input_file} does not exist")
         return
 
-    # 先尝试解析为完整 JSON
+    # First try to parse the content as a complete JSON object
     multi_round_data = None
     try:
         multi_round_data = json.loads(text)
     except Exception:
-        # 作为 JSONL 逐行解析
+        # Parse line by line as JSONL if standard JSON parsing fails
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         items = []
         for ln in lines:
             try:
                 items.append(json.loads(ln))
             except Exception:
-                # 忽略解析失败的行
+                # Ignore lines that fail to parse
                 continue
         multi_round_data = items
 
-    # 2.  初始化单轮样本列表
+    # 2. Initialize the list for single-round samples
     single_round_data = []
 
-    # 如果顶层是 dict，尝试识别包含样本的场景
+    # If the top-level data is a dictionary, identify the sample-containing structure
     if isinstance(multi_round_data, dict):
         if "trajectory" in multi_round_data:
             multi_round_data = [multi_round_data]
@@ -48,28 +48,27 @@ def split_multi_round_to_single_round(input_file, output_file):
                 if vals and all(isinstance(v, dict) and "trajectory" in v for v in vals):
                     multi_round_data = vals
                 else:
-                    print(f"警告：无法识别输入文件中的样本结构，期望顶层为样本列表或单个样本（包含 'trajectory'），跳过")
+                    print(f"Warning: Cannot recognize sample structure in input file. Expected a list of samples or a single sample with 'trajectory' key, skipping")
                     return
 
-    # 如果仍然不是列表，则退出
     if not isinstance(multi_round_data, list):
-        print(f"错误：解析后输入不是样本列表，类型={type(multi_round_data)}")
+        print(f"Error: Parsed input is not a sample list, type={type(multi_round_data)}")
         return
 
-    # 3. 遍历每个多轮样本，拆分轨迹
+    # 3. Iterate through each multi-round sample and split the trajectory
     for sample_idx, multi_sample in enumerate(multi_round_data):
-        # 提取并保留完整的 task_info（如果有）
+        # Extract and keep the complete task_info if available
         task_info = multi_sample.get("task_info", {}) if isinstance(multi_sample, dict) else {}
         
-        # 提取轨迹步骤
+        # Extract trajectory steps
         trajectory = multi_sample.get("trajectory", [])
         if not trajectory:
-            print(f"警告：样本 {sample_idx} 无轨迹数据，跳过")
+            print(f"Warning: Sample {sample_idx} has no trajectory data, skipping")
             continue
 
-        # 4. 拆分每个轨迹步骤为单轮样本（保留所有步骤信息）
+        # 4. Split each trajectory step into a single-round sample (retain all step details)
         for step_data in trajectory:
-            # 在原 task_info 基础上加入 step 字段
+            # Add step index to the original task_info
             single_task_info = dict(task_info)
             if isinstance(step_data, dict):
                 single_task_info["step"] = step_data.get("step", 0)
@@ -84,23 +83,23 @@ def split_multi_round_to_single_round(input_file, output_file):
             }
             single_round_data.append(single_sample)
 
-    # 5. 将拆分后的数据写入输出文件
+    # 5. Write the processed data to the output file
     try:
-        # 将结果写为一个漂亮的 JSON 数组，便于阅读
+        # Write as formatted JSON array for better readability
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(single_round_data, f, indent=2, ensure_ascii=False)
-        print(f"拆分完成！共处理 {len(multi_round_data)} 个多轮样本，生成 {len(single_round_data)} 个单轮样本")
-        print(f"输出文件路径：{os.path.abspath(output_file)}")
+        print(f"Splitting completed! Processed {len(multi_round_data)} multi-round samples, generated {len(single_round_data)} single-round samples")
+        print(f"Output file path: {os.path.abspath(output_file)}")
     except PermissionError:
-        print(f"错误：无权限写入输出文件 {output_file}")
+        print(f"Error: Permission denied to write output file {output_file}")
     except Exception as e:
-        print(f"错误：写入文件失败 - {str(e)}")
+        print(f"Error: Failed to write file - {str(e)}")
+        
 
-# ------------------- 脚本使用示例 -------------------
 if __name__ == "__main__":
-    # 请修改以下路径为实际的输入/输出文件路径
-    INPUT_JSON_PATH = "/data/EnvScaler/interact_with_env/result/3.add_config_change.json"  # 原始多轮样本文件
-    OUTPUT_JSON_PATH = "/data/EnvScaler/interact_with_env/result/4.single_splited.json"  # 拆分后的单轮样本文件
+    # Modify the following paths to your actual input and output file paths
+    INPUT_JSON_PATH = "/EnvScaler/result/3.add_config_change.json"
+    OUTPUT_JSON_PATH = "/EnvScaler/result/4.single_splited.json"
     
-    # 执行拆分
+    # Execute the splitting process
     split_multi_round_to_single_round(INPUT_JSON_PATH, OUTPUT_JSON_PATH)

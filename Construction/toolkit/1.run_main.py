@@ -317,11 +317,11 @@ if __name__ == "__main__":
     ]
     # generate save file path
     if env_name in ["bfcl", "envscaler_non_conversation_rl","envscaler_non_conversation_sft", "acebench_multi_step"]:
-        save_file_path = f"/data/EnvScaler/interact_with_env/result/{env_name}/{agent_model}-{infer_mode}_{get_current_time()}.json"
+        save_file_path = f"/EnvScaler/result/{env_name}/{agent_model}-{infer_mode}_{get_current_time()}.json"
     elif env_name in ["envscaler_conversation_rl","envscaler_conversation_sft", "acebench_multi_turn"]:
-        save_file_path = f"/data/EnvScaler/interact_with_env/result/{env_name}/{agent_model}-{infer_mode}_{env_config['user_model']}_{get_current_time()}.json"
+        save_file_path = f"/EnvScaler/result/{env_name}/{agent_model}-{infer_mode}_{env_config['user_model']}_{get_current_time()}.json"
     else: # tau bench
-        save_file_path = f"/data/EnvScaler/interact_with_env/result/{env_name}/{agent_model}-{infer_mode}_{env_config['user_model']}_{env_config['user_strategy']}_{get_current_time()}.json"
+        save_file_path = f"/EnvScaler/result/{env_name}/{agent_model}-{infer_mode}_{env_config['user_model']}_{env_config['user_strategy']}_{get_current_time()}.json"
     print("save_file_path:", save_file_path)
     # run task solving
     solve_task_multiprocess(task_configs=task_configs, save_file_path=save_file_path, num_workers=num_workers)

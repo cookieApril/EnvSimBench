@@ -1,24 +1,24 @@
 import json
 import ast
 import re
-import os  # 新增：用于设置环境变量
-from openai import OpenAI  # 替换：anthropic → OpenAI
+import os  
+from openai import OpenAI  # 替换：
 from pathlib import Path
 
-# ===================== 你的配置直接写在这里 =====================
-# 把你提供的 API Key 和 Base URL 硬编码到代码中，无需 export
-os.environ["OPENAI_API_KEY"] = "sk-Trwxb599vmtPvR7lzlYjZ9qFS3NpovQ6uTMn7wCglE84kWix"
-os.environ["OPENAI_BASE_URL"] = "https://yunwu.ai/v1"
-# ==============================================================
+# ===================== Configuration =====================
+# Hardcode your API Key and Base URL here, no need to export environment variables
+os.environ["OPENAI_API_KEY"] = "sk-123abc"
+os.environ["OPENAI_BASE_URL"] = "https://123abc"
+# ==========================================================
 
 def extract_tool_name(tool_call: str) -> str:
-    """从 tool_call 字符串提取函数名"""
+    """Extract function name from tool_call string"""
     match = re.match(r"(\w+)\(", tool_call)
     return match.group(1) if match else ""
 
 
 def extract_tool_code(env_code: str, tool_name: str) -> str:
-    """从环境代码中提取指定函数的代码"""
+    """Extract specified function code from environment code"""
     try:
         tree = ast.parse(env_code)
         for node in ast.walk(tree):
@@ -36,7 +36,7 @@ def extract_tool_code(env_code: str, tool_name: str) -> str:
 
 
 def extract_relevant_state(tool_name: str, full_config: dict) -> dict:
-    """根据函数名启发式提取相关状态，减少 token 消耗"""
+    """Heuristically extract relevant state based on function name to reduce token consumption"""
     
     STATE_MAP = {
         "user": ["users"],
@@ -74,7 +74,7 @@ def extract_relevant_state(tool_name: str, full_config: dict) -> dict:
 
 
 def generate_reason(client: OpenAI, sample: dict) -> str:
-    """为单条 SFT 样本生成 reasoning"""
+    """Generate reasoning for a single SFT sample"""
     
     instruction = sample.get("instruction", "")
     input_data = sample.get("input", {})
@@ -136,9 +136,9 @@ Config changes: {json.dumps(config_changes, ensure_ascii=False)}
 
 Generate the execution trace (numbered steps only, no preamble):"""
 
-    # ===================== OpenAI API 调用 =====================
+    # ===================== OpenAI API Call =====================
     response = client.chat.completions.create(
-        model="gpt-4o",  # 可根据中转平台修改模型名
+        model="gpt-4o",  
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -153,8 +153,8 @@ def process_sft_file(
     max_samples: int = None,
     skip_no_change: bool = False
 ):
-    """处理 SFT 数据文件"""
-    # 初始化 OpenAI 客户端（自动读取代码内的环境变量）
+    """Process SFT dataset file"""
+    # Initialize OpenAI client (auto load env vars set in code)
     client = OpenAI(
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url=os.getenv("OPENAI_BASE_URL")
@@ -169,12 +169,11 @@ def process_sft_file(
             for line in f:
                 try:
                     obj = json.loads(line)
-                    # === 核心修改 1：只有 successfully processed 的样本才被记录，忽略之前生成的空 reason 样本 ===
                     if obj.get("reason", "") != "":
                         processed_ids.add(obj.get("_id", ""))
                 except:
                     pass
-        print(f"已有 {len(processed_ids)} 条成功处理完成，继续处理剩余样本...")
+        print(f"Resumed: {len(processed_ids)} samples already completed, continuing remaining tasks...")
     
     with open(input_file, "r", encoding="utf-8") as fin, \
          open(output_file, "a", encoding="utf-8") as fout:
@@ -190,7 +189,7 @@ def process_sft_file(
             try:
                 sample = json.loads(line)
             except json.JSONDecodeError:
-                print(f"跳过第 {line_idx} 行：JSON 解析失败")
+                print(f"Skipping line {line_idx}: invalid JSON format")
                 continue
             
             sample_id = f"line_{line_idx}"
@@ -223,17 +222,16 @@ def process_sft_file(
                 fout.flush()
                 
             except Exception as e:
-                # === 核心修改 2：遇到报错直接停止运行，不再向文件里写入空跑的废数据 ===
-                print(f"[{line_idx}] 生成失败: {e}")
-                print("遇到 API 错误，程序自动暂停。保留当前断点，请检查额度/网络后重新运行。")
+                print(f"[{line_idx}] Generation failed: {e}")
+                print("API error occurred, program paused. Check quota/network and restart to resume.")
                 break
             
             count += 1
             if max_samples and count >= max_samples:
-                print(f"达到最大样本数 {max_samples}，停止处理")
+                print(f"Reached max sample limit {max_samples}, stop processing")
                 break
     
-    print(f"本次运行处理完成：{count} 条生成，{skipped} 条跳过")
+    print(f"Run completed: {count} generated, {skipped} skipped")
 
 
 def rebuild_sft_with_reason(input_path: str, output_path: str):
@@ -261,21 +259,22 @@ def rebuild_sft_with_reason(input_path: str, output_path: str):
             
             fout.write(json.dumps(sample, ensure_ascii=False) + "\n")
     
-    print(f"重建完成，输出到 {output_path}")
+    print(f"Rebuild finished, final dataset saved to {output_path}")
 
 
 if __name__ == "__main__":
-    # 请根据你的文件路径修改
+    # Modify file paths according to your needs
     process_sft_file(
-        input_path="/data/EnvScaler/interact_with_env/result/13.sft_data_alpaca_en-selectByTask.json",
-        output_path="/data/EnvScaler/interact_with_env/result/14.sft_data_with_reason_raw-selectByTask.jsonl",
+        input_path="/EnvScaler/result/13.sft_data_alpaca_en-selectByTask.json",
+        output_path="/EnvScaler/result/14.sft_data_with_reason_raw-selectByTask.jsonl",
         skip_no_change=True,
         max_samples=None
     )
     
-    # 只有当所有的样本都跑完后，再执行 rebuild，否则会导致未生成 reason 的数据也被打包
-    # 如果你在中途因为 API 报错断开了，请先注释掉下面这段。等全部跑通后再取消注释运行。
+    # Run rebuild ONLY after ALL samples are fully processed
+    # Comment out this part if stopped halfway by API error
+    # Uncomment after full completion to generate final dataset
     rebuild_sft_with_reason(
-        input_path="/data/EnvScaler/interact_with_env/result/14.sft_data_with_reason_raw-selectByTask.jsonl",
-        output_path="/data/EnvScaler/interact_with_env/result/14.sft_data_final.jsonl-selectByTask"
+        input_path="/EnvScaler/result/14.sft_data_with_reason_raw-selectByTask.jsonl",
+        output_path="/EnvScaler/result/14.sft_data_final.jsonl-selectByTask"
     )

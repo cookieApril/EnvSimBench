@@ -213,7 +213,7 @@ resp = requests.post(
     f'{__import__(\"os\").environ[\"OPENAI_BASE_URL\"]}/chat/completions',
     json={
         'model': 'models/Qwen/Qwen3-4B-Base',
-        'messages': [{'role': 'user', 'content': '你好，请介绍一下你自己。'}],
+        'messages': [{'role': 'user', 'content': 'Hello, please introduce yourself.'}],
         'max_tokens': 100,
     },
 )

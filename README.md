@@ -4,7 +4,7 @@
 <h1 align="center">EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</h1>
 
 <div align="center">
-  <a href="https://arxiv.org/">
+  <a href="https://arxiv.org/abs/2605.07247v1">
     <img src="https://img.shields.io/badge/Paper-arXiv-b5212f.svg?logo=arxiv" alt="arXiv">
   </a>
   <a href="https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench">

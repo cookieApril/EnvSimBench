@@ -127,7 +127,7 @@
 - 我们的 **4B 专用模拟器在 Config Match 上超越所有前沿 LLM**，参数规模约为前者的 1/59。
 
 <p align="center">
-  <img src="Figs/state_change_cliff.png" width="92%"><br>
+  <img src="Figs/Fig_SFT_vs_Frontier_python.png" width="92%"><br>
   <em>Config Match 与 <code>|Δ|</code> 的关系：前沿 LLM（细线）在 <code>|Δ| ≥ 3</code> 时急剧下降；本文的 Full-Balance2（粗线）在可部署区间领先最高 +10pp。</em>
 </p>
 

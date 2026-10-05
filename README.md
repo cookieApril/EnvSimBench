@@ -4,7 +4,7 @@
 <h1 align="center">EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation</h1>
 
 <div align="center">
-  <a href="https://arxiv.org/abs/2605.07247v1">
+  <a href="https://arxiv.org/">
     <img src="https://img.shields.io/badge/Paper-arXiv-b5212f.svg?logo=arxiv" alt="arXiv">
   </a>
   <a href="https://huggingface.co/datasets/Louie-CookieApril/EnvSimBench">
@@ -349,26 +349,3 @@ python evaluate.py \
 
 > **Composition matters more than volume.** Mirroring the empirical `|Δ|` distribution of source environments (1 K failure + 1 K no-change + 2 K simple-change + 2.23 K complex-change ≈ 6.23 K total) outperforms naïve scaling at the 5 K-sample regime.
 
----
-
-## 📚 Citation
-
-If you find our work helpful, please consider citing it. We greatly appreciate your support.
-
-```bibtex
-@article{liu2025envsimbench,
-  title   = {EnvSimBench: A Benchmark for Evaluating and Improving LLM-Based Environment Simulation},
-  author  = {Liu, Yi and Hui, TingFeng and Zhang, Wei and Sun, Li and Su, Ningxin and Wang, Jian and Su, Sen},
-  journal = {arXiv preprint},
-  year    = {2025}
-}
-```
-
----
-
-## 📞 Contact
-
-For questions, suggestions, or collaboration, please reach out to:
-
-- **Yi Liu** — [louie@bupt.edu.cn](mailto:louie@bupt.edu.cn)
-- Open an issue on this repository.

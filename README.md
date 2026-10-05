@@ -35,8 +35,7 @@
 - [🚀 Quick Start](#-quick-start)
 - [🧪 Running the Benchmark](#-running-the-benchmark)
 - [🏋️ Training Your Own Simulator](#-training-your-own-simulator)
-- [📚 Citation](#-citation)
-- [📞 Contact](#-contact)
+
 
 ---
 

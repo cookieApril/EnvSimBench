@@ -29,6 +29,7 @@
 
 - [👀 Overview](#-overview)
 - [✨ Key Contributions](#-key-contributions)
+- [✨ Results at a Glance](#-results-at-a-glance)
 - [📦 Dataset & Models](#-dataset--models)
 - [📊 Main Results](#-main-results)
 - [📁 Project Structure](#-project-structure)
@@ -55,8 +56,8 @@ In practice, LLM simulators suffer from **hallucinations**, **logical inconsiste
 - A specialized **4B simulation model** that surpasses frontier LLMs on Config Match while cutting synthesis costs by over 90%.
 
 <p align="center">
-  <img src="Figs/Fig4.drawio.png" width="95%"><br>
-  <em>Overview of <b>EnvSimBench</b>: trajectory collection → three-axis stratification → frontier LLM evaluation + specialized small-model training.</em>
+  <img src="Figs/Fig3.png" width="95%" alt="Overview of EnvSimBench"><br>
+  <em><b>Overview of EnvSimBench.</b> Module A collects multi-turn trajectories from EnvScaler environments and converts them into self-contained state-prediction samples. Module B uses executor-verified labels and three-axis stratification to build a benchmark of 400 samples across 167 environments. Module C evaluates seven frontier LLMs and trains a specialized 4B simulator for downstream environment synthesis.</em>
 </p>
 
 ---
@@ -73,6 +74,24 @@ In practice, LLM simulators suffer from **hallucinations**, **logical inconsiste
   <em>POMDP (left) vs. constraint-driven MDP (right). Supplying <code>s_t</code> and <code>code(a_t)</code> explicitly removes hallucination, enforces logical consistency, and prevents state drift by construction.</em>
 </p>
 
+---
+## ✨ Results at a Glance
+
+EnvSimBench reveals a pronounced **state-change cliff**. The seven evaluated frontier LLMs achieve 99–100% Config Match (CM) on state-preserving samples, but their CM drops sharply when an action must update multiple fields. Feedback Match (FM) can remain high even when the predicted environment state is wrong.
+
+<p align="center">
+  <img src="Figs/Figure5_LargeText.png" width="95%" alt="Frontier LLM results across EnvSimBench difficulty groups"><br>
+  <em><b>Frontier LLM results across difficulty groups.</b> Blue bars show FM and orange bars show CM on Failure, No-Change, Simple, Medium, Difficult, and overall samples. Qwen3.5-397B-A17B achieves the highest overall CM among frontier models (42.3%), while GLM-5 achieves the highest overall FM (80.5%).</em>
+</p>
+
+Targeted training helps close this gap. Our **Full-Balance2 4B simulator** reaches **45.3% overall CM**, exceeding the best frontier baseline by **3.0 percentage points**. Its largest gains occur on transitions with one to four changed fields; transitions requiring five or more changes remain difficult.
+
+<p align="center">
+  <img src="Figs/Fig_SFT_vs_Frontier.png" width="85%" alt="Full-Balance2 compared with frontier LLMs by state-change count"><br>
+  <em><b>Config Match by state-change count.</b> Full-Balance2 outperforms the strongest frontier baseline at each level from one to four changed fields by up to 10 percentage points. The final point pools samples with seven to twelve changed fields.</em>
+</p>
+
+---
 ---
 
 ## 📦 Dataset & Models

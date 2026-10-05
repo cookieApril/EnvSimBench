@@ -29,9 +29,8 @@
 
 - [👀 Overview](#-overview)
 - [✨ Key Contributions](#-key-contributions)
-- [✨ Results at a Glance](#-results-at-a-glance)
-- [📦 Dataset & Models](#-dataset--models)
 - [📊 Main Results](#-main-results)
+- [📦 Dataset & Models](#-dataset--models)
 - [📁 Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
 - [🧪 Running the Benchmark](#-running-the-benchmark)
@@ -75,23 +74,55 @@ In practice, LLM simulators suffer from **hallucinations**, **logical inconsiste
 </p>
 
 ---
-## ✨ Results at a Glance
+## 📊 Main Results
 
-EnvSimBench reveals a pronounced **state-change cliff**. The seven evaluated frontier LLMs achieve 99–100% Config Match (CM) on state-preserving samples, but their CM drops sharply when an action must update multiple fields. Feedback Match (FM) can remain high even when the predicted environment state is wrong.
+### Frontier LLMs Exhibit a Universal State-Change Cliff
+
+EnvSimBench reveals a pronounced **state-change cliff**. The seven evaluated frontier LLMs achieve **99–100% Config Match (CM)** on state-preserving samples, but their ability to predict state transitions drops sharply when an action must update multiple fields. Meanwhile, Feedback Match (FM) can remain high even when the predicted environment state is incorrect, revealing a potentially silent source of corrupted training signals.
 
 <p align="center">
-  <img src="Figs/Figure5_LargeText.png" width="95%" alt="Frontier LLM results across EnvSimBench difficulty groups"><br>
-  <em><b>Frontier LLM results across difficulty groups.</b> Blue bars show FM and orange bars show CM on Failure, No-Change, Simple, Medium, Difficult, and overall samples. Qwen3.5-397B-A17B achieves the highest overall CM among frontier models (42.3%), while GLM-5 achieves the highest overall FM (80.5%).</em>
+  <img src="Figs/Figure5_LargeText.png" width="95%" alt="Frontier LLM performance across EnvSimBench difficulty groups"><br>
+  <em><b>Frontier LLM performance across difficulty groups.</b> Blue bars show Feedback Match and orange bars show Config Match under non-thinking inference. Models perform reliably on Failure and No-Change samples, but CM drops substantially on Simple, Medium, and Difficult state-changing operations. Qwen3.5-397B-A17B achieves the highest overall CM among frontier models (42.3%), while GLM-5 achieves the highest overall FM (80.5%).</em>
 </p>
 
-Targeted training helps close this gap. Our **Full-Balance2 4B simulator** reaches **45.3% overall CM**, exceeding the best frontier baseline by **3.0 percentage points**. Its largest gains occur on transitions with one to four changed fields; transitions requiring five or more changes remain difficult.
+| Model | Fail+No-Chg CM | State-Change CM | Overall CM |
+| --- | :---: | :---: | :---: |
+| DeepSeek-V3.2 | 100.0% | 10.0% | 32.5% |
+| Qwen3.5-397B-A17B | 100.0% | **23.0%** | **42.3%** |
+| GPT-5.4 | 100.0% | 22.7% | 42.0% |
+| Gemini-3.1-Pro-Preview | 100.0% | 22.7% | 42.0% |
+| Claude-Sonnet-4.6 | 99.0% | 17.3% | 37.8% |
+| MiniMax-M2.7 | 99.0% | 22.7% | 41.8% |
+| GLM-5 | 100.0% | 21.3% | 41.0% |
+| **Ours (Full-Balance2, 4B)** | **99.0%** | **27.3%** | **45.3%** |
+
+The results expose three consistent patterns:
+
+- Every frontier model achieves at least **99% CM** on state-preserving operations, but only **10.0–23.0% CM** on state-changing operations.
+- At `|Δ| = 5`, all evaluated frontier models fall to **4% CM or lower**, marking the sharpest point of the state-change cliff.
+- High FM does not necessarily imply a correct state transition: a model can return plausible feedback while silently corrupting the underlying environment state.
+
+### A Specialized 4B Simulator Outperforms Frontier LLMs
+
+Guided by the benchmark findings, we train **Full-Balance2**, a specialized 4B simulator whose training mixture covers failure, no-change, simple-change, and complex-change operations. Full-Balance2 achieves **45.3% overall CM**, exceeding the strongest frontier baseline by **3.0 percentage points**, while reaching **79.5% overall FM**.
+
+Its advantage is concentrated in the practically relevant low-to-medium complexity regime. For transitions involving one to four changed fields, Full-Balance2 exceeds the strongest frontier result at each state-change level by up to **10 percentage points**. Transitions requiring five or more changes remain challenging for both specialized and frontier models.
 
 <p align="center">
   <img src="Figs/Fig_SFT_vs_Frontier.png" width="85%" alt="Full-Balance2 compared with frontier LLMs by state-change count"><br>
-  <em><b>Config Match by state-change count.</b> Full-Balance2 outperforms the strongest frontier baseline at each level from one to four changed fields by up to 10 percentage points. The final point pools samples with seven to twelve changed fields.</em>
+  <em><b>Config Match by state-change count.</b> Full-Balance2 is compared with seven frontier LLMs under the same benchmark setting. The specialized 4B model leads at every level from one to four changed fields, with gains of up to 10 percentage points. The final point pools samples with seven to twelve changed fields.</em>
 </p>
 
----
+### Downstream Environment Synthesis
+
+We further replace EnvScaler's large-model simulation ensemble with Full-Balance2. Under the same 0.85 quality threshold, the specialized simulator improves both synthesis quality and efficiency:
+
+- **+6.8% synthesis yield**, increasing the number of passing environments from 191 to 204.
+- **More than 90% lower simulation cost.**
+- Approximately **59× fewer model parameters** than the frontier-model pipeline.
+
+These results show that EnvSimBench provides both a diagnostic framework for identifying simulation failures and a practical path toward more accurate and cost-efficient environment synthesis.
+
 ---
 
 ## 📦 Dataset & Models

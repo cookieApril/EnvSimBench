@@ -127,7 +127,7 @@ These results show that EnvSimBench provides both a diagnostic framework for ide
 
 ## 📦 Dataset & Models
 
-We release the EnvSimBench data and our trained simulation model (SFT + RL) on Hugging Face:
+We release the EnvSimBench data and our Full-Balance2 4B simulator, trained with full-parameter SFT, on Hugging Face:
 
 | Data | Description | Link |
 | --- | --- | --- |
@@ -137,7 +137,7 @@ We release the EnvSimBench data and our trained simulation model (SFT + RL) on H
 
 | Model | Description | Link |
 | --- | --- | --- |
-| EnvSimBench-Model | 4B simulator (SFT + RL) — surpasses frontier LLMs on Config Match | [🤗 HuggingFace](https://huggingface.co/Louie-CookieApril/EnvSimBench-Model) |
+| EnvSimBench-Model | Full-Balance2 4B simulator trained with full-parameter SFT — surpasses frontier LLMs on Config Match | [🤗 HuggingFace](https://huggingface.co/Louie-CookieApril/EnvSimBench-Model) |
 
 ### Benchmark Composition
 

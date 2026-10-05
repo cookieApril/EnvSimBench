@@ -153,40 +153,6 @@ Each sample is **independently verifiable** against a deterministic external exe
 
 ---
 
-## 📊 Main Results
-
-### Frontier LLMs Exhibit a Universal State-Change Cliff
-
-| Model | Fail+No-Chg CM | State-Change CM | Overall CM |
-| --- | :---: | :---: | :---: |
-| DeepSeek-V3.2 | 100% | 10.0% | 32.5% |
-| Qwen3.5-397B-A17B | 100% | 23.0% | 42.3% |
-| GPT-5.4 | 100% | 22.7% | 42.0% |
-| Gemini-3.1-Pro-Preview | 100% | 22.7% | 42.0% |
-| Claude-Sonnet-4.6 | 99% | 17.3% | 37.8% |
-| MiniMax-M2.7 | 99% | 22.7% | 41.8% |
-| GLM-5 | 100% | 21.3% | 41.0% |
-| **Ours (Full-Balance2, 4B)** | **100%** | **—** | **45.3%** |
-
-- Every frontier model achieves ≥99% CM on state-preserving samples but collapses on state-changing ones.
-- At `|Δ| ≥ 5`, all frontier models converge near zero CM.
-- Our **4B specialized simulator surpasses all frontier LLMs on Config Match** while running at ≈59× lower parameter count.
-
-<p align="center">
-  <img src="Figs/state_change_cliff.png" width="92%"><br>
-  <em>Config Match vs. <code>|Δ|</code>. Frontier LLMs (thin lines) drop sharply at <code>|Δ| ≥ 3</code>; our Full-Balance2 (thick) leads by up to +10 pp on the deployable regime.</em>
-</p>
-
-### Downstream Synthesis Yield
-
-Plugging our 4B simulator into the EnvScaler synthesis pipeline (replacing its large-model ensemble) yields:
-
-- **+6.8%** more environments passing the 0.85 quality threshold (191 → 204)
-- **>90%** lower simulation cost
-- Pareto-superior on both cost and quality
-
----
-
 ## 📁 Project Structure
 
 ```
